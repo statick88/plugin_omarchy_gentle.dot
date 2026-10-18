@@ -1,21 +1,21 @@
 # Gentle Dot for Omarchy
 
-A small Omarchy 4 / Quickshell plugin that opens or hides the **official Gentle Dot desktop panel**. Chat and settings stay in the native application; this plugin does not implement another assistant, read credentials, or connect to the daemon.
+An independent Omarchy 4 / Quickshell bar widget that opens or hides the
+**official Gentle Dot desktop panel**. Chat and settings remain in the native app.
+The plugin does not implement another assistant or read account credentials.
 
-This is an independent integration, not an official Gentle Dot plugin.
+## Install
 
-## Use it
-
-1. Install a working [Gentle Dot desktop app](https://github.com/Gentleman-Programming/gentle-dot/blob/main/docs/install.md). The upstream README currently says there are no published releases; follow its source-build instructions if a package is unavailable. Do not run a second daemon for this plugin.
-2. From this project's root, run the launcher tests:
+1. Install a working [Gentle Dot desktop app](https://github.com/Gentleman-Programming/gentle-dot/blob/main/docs/install.md).
+   Native installation/build is an external prerequisite, not part of this plugin.
+2. Clone the plugin:
 
    ```sh
-   python3 -m unittest discover -s tests -v
+   git clone https://github.com/statick88/plugin_omarchy_gentle.dot.git
+   cd plugin_omarchy_gentle.dot
    ```
 
-   Validate the plugin-only destination in step 3. Do not validate this whole working tree after a native build: `vendor/` contains dependency symlinks that Omarchy correctly rejects in distributable plugins.
-
-3. With the native app **already running** and its tray menu available, explicitly install one visible rose:
+3. With Gentle Dot **already running** and its tray menu available, explicitly install:
 
    ```sh
    python3 scripts/install.py --app-path /absolute/path/to/gentle-dot
@@ -25,93 +25,102 @@ This is an independent integration, not an official Gentle Dot plugin.
 
    Requires Python 3 (stdlib only), `busctl`, `omarchy`, a running `omarchy-shell`,
    and a valid version-1 `~/.config/omarchy/shell.json` with all three layout sections.
-   Use `--help` for options. Quote launcher paths containing spaces; they are literal
-   paths, not shell commands. The installer never executes the launcher.
+   Use `python3 scripts/install.py --help` for options. Marketplace installation
+   does not run this setup command or arbitrary hooks.
+4. Left-click the bar rose to toggle the native panel. A failed launcher produces
+   an actionable tooltip; repeated clicks are ignored while launch is running.
 
-   This is a separate explicit command: Omarchy marketplace installation does not
-   run hooks. Only seven plugin files (manifest, QML, toggle script, rose SVG and
-   three license/notice files) are staged, validated and installed. No native app,
-   vendor dependencies, runtime or account data is installed or modified. Nothing
-   is downloaded, started, stopped or logged into; no sudo or restart is used.
+The explicit installer stages and validates only seven runtime files: manifest,
+QML, toggle script, rose SVG and three license/notice files. It does not download,
+build, install, start, stop or log into the native application, and requires no sudo.
 
-   The installer preserves existing widget placement/settings and `appPath` unless
-   explicitly overridden. Otherwise it adds the widget on the right. It uses the
-   official native **Hide the rose** menu event and verifies **Show the rose**, and
-   adds only the identified native ID to existing tray widgets' `hidden` arrays.
-   Peers, pins and other hidden IDs remain unchanged; an absent tray is not added.
-   Exact title + official menu checks must identify one native item, with no other
-   item sharing its ID. The menu must contain one Open, one Quit and one Hide/Show
-   action; other native actions and unlabeled separators are allowed, never clicked.
-   A generic ID alone is never trusted; collisions or missing
-   metadata reject installation before changes. This check cannot prevent a future
-   app from reusing that ID: inspect the tray's hidden list if other icons disappear.
+## One visible rose, safely
 
-   After a completed installation, repeating the command in the same state does
-   not copy, back up, reload or click again. Pending shell synchronization is saved
-   privately beside `shell.json` in `.gentle-dot-pending` before payload/config writes.
-   If rescan/reload fails, restore shell availability and rerun: pending operations
-   run again before native hiding, without rewriting installed files or backups.
-   The marker is removed only after successful synchronization; malformed or
-   symlinked markers are rejected for inspection, never followed or silently reset.
-   Changed config is backed up beside `shell.json` to a unique
-   `shell.json.bak.gentle-dot.*` path, printed by the command and created with
-   owner-only permissions (0600, further restricted by umask). Identical installed
-   files are untouched; edited or unexpected destination files are refused, not
-   silently updated (preserve/remove that copy yourself before reinstalling).
-   Unsafe symlinks and invalid config are rejected. Concurrent config changes are
-   checked before atomic replacement, but this is not a lock shared by other writers;
-   avoid simultaneous settings edits. Exit 1 means preflight rejection; exit 2 means
-   a partial installation/external failure, including failed creation/write/close
-   attempts that may leave files or directories: inspect the printed error and backup,
-   then retry or reconcile the related settings. No automatic rollback is promised.
+The installer preserves existing widget placement/settings and `appPath` unless
+explicitly overridden; a new widget is added on the right. It identifies the native
+app by exact title and menu shape, rejects shared IDs, invokes only its official
+**Hide the rose** action and verifies **Show the rose**. It adds only that native ID
+to existing tray widgets' `hidden` arrays, preserving peers/pins; it never adds a tray.
+The native ID is generic: current collision checks cannot prevent a future app
+from reusing it. Inspect the hidden list if another icon later disappears.
 
-4. Left-click the **rose** in the bar. The official app's `--toggle` shows or hides its panel. Open chat and configuration within that panel. If launch fails, hover over the button for the error. The button ignores additional clicks while its launch process is running.
+Changed config is backed up to a unique `shell.json.bak.gentle-dot.*` beside the
+original, with owner-only permissions. Existing identical plugin files are untouched;
+edited/unexpected files and unsafe symlinks are rejected instead of overwritten.
+Concurrent config changes are checked before replacement; this is not a shared lock,
+so avoid simultaneous settings edits. Account and conversation data is untouched.
 
-### Configure the native launcher
+Pending shell synchronization is stored privately beside `shell.json` in
+`.gentle-dot-pending` before payload/config writes. After a rescan/reload failure,
+restore shell availability and rerun: pending operations run before native hiding,
+without rewriting completed files/backups. The marker is removed only after
+successful synchronization. Invalid/symlinked markers are rejected for inspection.
+A repeat after successful installation makes no writes, backups, reloads or clicks.
 
-## Brand and license
+| Exit | Meaning |
+| --- | --- |
+| `0` | Installed or already configured |
+| `1` | Preflight rejection; inspect the reported prerequisite |
+| `2` | Partial installation/external failure; inspect error and backup, then retry/reconcile |
 
-The bar uses the official monochrome Gentle Dot rose, unchanged from the pinned
-upstream revision, tinted with the SDK bar foreground rather than a fixed
-palette or font. See [third-party attribution](THIRD_PARTY_NOTICES.md) and the
-[preserved upstream MIT notice](LICENSES/gentle-dot-MIT.txt). This independent
-integration is MIT licensed under [Copyright 2026 statick](LICENSE); use of the
-rose does not imply official affiliation or trademark permission.
+Automatic rollback is not promised, including when failed creation/write/close
+attempts may already have left files or directories.
 
-For floating/pinned placement on Hyprland, use the [official Lua rules](https://github.com/Gentleman-Programming/gentle-dot/blob/main/scripts/linux/hyprland/gentle-dot.lua). Match the shortcut command to your actual app location. This plugin does not edit window rules or keyboard shortcuts.
+## Choose the native launcher
 
-### Disable or remove safely
+Set `appPath` on the existing `statick.gentle-dot` entry in any bar section of
+`~/.config/omarchy/shell.json`, preserving other settings:
+
+```json
+{"id": "statick.gentle-dot", "appPath": "/absolute/path/to/gentle-dot"}
+```
+
+This is one literal argv path, not a shell expression. Spaces are supported;
+`~` and variables are not expanded. Empty/omitted `appPath` tries the executable
+`~/.local/bin/gentle-dot`, then `gentle-dot` on PATH. Only `--toggle` is passed.
+Missing/broken configured paths fail with exit 127; app failures are propagated
+without fallback or retry. Direct use: `/bin/sh toggle.sh /absolute/native/launcher`.
+
+## Disable or remove
 
 ```sh
 omarchy plugin disable statick.gentle-dot
-# Optionally remove plugin files using the public command:
 omarchy plugin remove statick.gentle-dot
 ```
 
-These commands do not restore native visibility. To return to the native controls,
-remove **only** Gentle Dot's ID from each existing `omarchy.tray` entry's `hidden`
-array in `~/.config/omarchy/shell.json` (compare the printed installer backup).
-Preserve peer IDs, pins and all other settings; do not replace the entire config
-with an old backup. Then choose **Show the rose** in the native tray menu if wanted.
-Leave the app and its account data intact. If the tray was already absent, use the
-native app's supported controls to restore visibility; the installer never adds a tray.
+These commands do not restore native visibility. Remove **only** Gentle Dot's ID
+from existing tray `hidden` arrays (compare the installer backup), preserving peer
+IDs/pins/layout; never replace the whole config with an old backup. Choose **Show
+the rose** in the native tray menu if wanted. If no tray was present, use the native
+app's supported controls. Leave native accounts and app data intact.
 
-## Files
+## Verify the plugin
 
-| File | Purpose |
+```sh
+python3 -m unittest discover -s tests -v
+omarchy plugin validate .
+```
+
+Tests use isolated fake desktop/native commands; they do not initiate login,
+send model messages or install on the live desktop. Plugin validation is not a
+security audit: community plugins run unsandboxed and require source inspection.
+
+## Files and license
+
+| Files | Purpose |
 | --- | --- |
-| `manifest.json` | Omarchy plugin identity and bar entrypoint |
-| `BarWidget.qml` | Theme-aware bar button, launch process, error tooltip |
-| `toggle.sh` | Resolve the official app and execute `--toggle` |
-| `tests/test_toggle.py` | Isolated plugin launcher tests with fake executables; no account or real daemon |
-| `scripts/install.py` | Explicit plugin-only, single-rose installer with config backup |
-| `tests/test_install.py` | Isolated installer CLI checks; no real desktop or account calls |
+| `manifest.json`, `BarWidget.qml`, `toggle.sh` | Plugin identity, bar widget and literal native toggle |
+| `assets/rose-glyph.svg` | Official monochrome rose, tinted by the bar theme |
+| `scripts/install.py` | Explicit plugin-only single-rose installer |
+| `tests/test_install.py`, `tests/test_toggle.py` | Plugin CLI regression tests |
+| `README.md`, `.gitignore` | Plugin documentation and local-state exclusions |
+| `LICENSE`, `LICENSES/gentle-dot-MIT.txt`, `THIRD_PARTY_NOTICES.md` | MIT license and preserved upstream attribution |
 
-## Official references
+The rose is unchanged from upstream revision
+`8cb20ee888c88be2b359258a65499c20b59e2a86`; see [third-party notices](THIRD_PARTY_NOTICES.md).
+This is not an official Gentle Dot or Omarchy product. Names/marks belong to their
+owners; the software license does not grant trademark rights or imply endorsement.
 
-- [Official Omarchy plugin authoring guide](https://plugins.omarchy.org/develop.html)
-- [Official Omarchy plugin publishing guide](https://plugins.omarchy.org/publish.html)
-- [Gentle Dot README](https://github.com/Gentleman-Programming/gentle-dot)
-- [Installation and Linux security limits](https://github.com/Gentleman-Programming/gentle-dot/blob/main/docs/install.md)
-- [Linux / Omarchy testing checklist](https://github.com/Gentleman-Programming/gentle-dot/blob/main/docs/linux-testing.md)
-- Local SDK: `/usr/share/omarchy/shell/README.md` and `/usr/share/omarchy/shell/Ui/` (read-only).
+References: [Omarchy plugin development](https://plugins.omarchy.org/develop.html),
+[publication](https://plugins.omarchy.org/publish.html),
+[Gentle Dot source](https://github.com/Gentleman-Programming/gentle-dot).
