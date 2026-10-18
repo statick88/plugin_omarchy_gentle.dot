@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "statick.gentle-dot",
+  "name": "Gentle Dot for Omarchy",
+  "version": "0.1.0",
+  "description": "Independent Gentle Dot for Omarchy integration to toggle the native chat and settings panel.",
+  "author": "statick",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Gentle Dot for Omarchy",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": { "appPath": "" },
+    "schema": [
+      { "key": "appPath", "type": "string", "label": "Native launcher path (empty for automatic lookup)" }
+    ]
+  }
+}
