@@ -4,6 +4,13 @@ A small Omarchy 4 / Quickshell plugin that opens or hides the **official Gentle 
 
 This is an independent integration, not an official Gentle Dot plugin.
 
+## Get the source
+
+```sh
+git clone https://github.com/statick88/plugin_omarchy_gentle.dot.git
+cd plugin_omarchy_gentle.dot
+```
+
 ## Use it
 
 1. Install a working [Gentle Dot desktop app](https://github.com/Gentleman-Programming/gentle-dot/blob/main/docs/install.md). The upstream README currently says there are no published releases; follow its source-build instructions if a package is unavailable. Do not run a second daemon for this plugin.
