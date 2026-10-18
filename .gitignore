@@ -1,4 +1,22 @@
-__pycache__/
-*.pyc
-vendor/
-.gentle-dot-install/
+# Version only the explicit plugin source boundary.
+/*
+!/.gitignore
+!/README.md
+!/LICENSE
+!/manifest.json
+!/BarWidget.qml
+!/toggle.sh
+!/THIRD_PARTY_NOTICES.md
+!/assets/
+/assets/*
+!/assets/rose-glyph.svg
+!/LICENSES/
+/LICENSES/*
+!/LICENSES/gentle-dot-MIT.txt
+!/scripts/
+/scripts/*
+!/scripts/install.py
+!/tests/
+/tests/*
+!/tests/test_install.py
+!/tests/test_toggle.py
