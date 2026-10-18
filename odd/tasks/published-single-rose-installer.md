@@ -10,10 +10,23 @@ Checks: Python unittest public CLI fixtures, package validation, syntax and inde
 
 ## Tasks
 
-- T1 [S1-S3] inline bounded correction; done for implementation/self-check: RED2 failures, GREEN19installer tests29.481s; original implementation 1ec1b7c28357f6b74b5f66bb9d105d9290688bea, correction commit pending.
-- T2 [S1-S3] independent source review/native targeted validation; in_progress: separate source-only correction review PASS S1-S3, native targeted validation pending; independent execution remains unavailable.
-- T3 [S1-S3] inline functional/package checks; done: correction33tests30.830s, syntax/help/real seven-file validation pass; no live install.
-- T4 [S1-S3] inline local delivery; pending; C0-C4 committed, native correction_required; bounded correction commit, validation and final chain record remain; no remote/publication.
+- T1 [S1-S3] inline bounded correction; done: RED2/GREEN19, full33tests; implementation 1ec1b7c28357f6b74b5f66bb9d105d9290688bea, correction c43afb509dd7be32ce35ed0d57ce93d759ef8ccd.
+- T2 [S1-S3] independent source/native validation; done: source PASS S1-S3, targeted native approved and acknowledgement authority burned for c43afb509dd7be32ce35ed0d57ce93d759ef8ccd; independent executable proof unavailable, not claimed.
+- T3 [S1-S3] inline functional/package checks; done:33tests30.830s, syntax/help/real seven-file validation pass for c43afb509dd7be32ce35ed0d57ce93d759ef8ccd; no live install.
+- T4 [S1-S3] inline local delivery; done: exact ancestry/private allowlist verified through c43afb509dd7be32ce35ed0d57ce93d759ef8ccd; passive closure recorded here; no remote/push/PR/publication.
+
+### Local chain evidence
+
+| Branch/unit | Implementation commit | Authored diff lines | Observed checks |
+| --- | --- | ---: | --- |
+| main / tracker feat/native-gentle-dot | 4b898c5c8e53f1768440761026c2c4474d407b11 | 34 | Passive structure |
+| feat/gentle-dot-bar | 5a3d16d9374b35e72905f9f8413218851d020ed7 | 350 | 7 tests + package |
+| feat/gentle-dot-build | 91f3a745beb0835588dd8c2b99bfd1edd1a91199 | 231 | 9 tests + package |
+| feat/gentle-dot-launcher | 85cf95216e7d1f3963622bbf0b78a8088d0c6cb2 | 323 | 14 tests + package |
+| feat/gentle-dot-installer | 1ec1b7c28357f6b74b5f66bb9d105d9290688bea | 1073 | 30 tests + package |
+| Installer correction, same branch | c43afb509dd7be32ce35ed0d57ce93d759ef8ccd | 130 | 33 tests + source review + native approval/burn |
+
+Each behavior child starts at its immediate parent's implementation commit. The installer branch also contains this passive documentation closure; the table identifies code units, not future branch tips. Installer overage remains explicit after one honest slicing pass; no exception-label policy or <=400 claim is invented.
 
 ## Log
 
@@ -42,3 +55,6 @@ L22 Correction plan: reproduce both shell failures plus a repeated failing retry
 L23 Observed RED2publicCLI failures exit1 (3.497s): second attempt falsely exited0 despite continuing IPC failure. After pending-marker correction GREEN19installer tests exit0 (29.481s), including both IPC operations/repeated failure/recovery/native-event ordering, private marker, bad marker rejection and successful no-op rerun; no live actions. Current correction127diff lines before this evidence update, within forecast200; full33test/package and independent/native validation pending.
 L24 Parent full33tests passed exit0 (30.830s); syntaxcompile, public help and real seven-file Omarchy validation passed exit0; no live desktop actions. Separate source-only correction review is required by item5; previously unavailable independent execution is not retried. Native targeted validation remains pending and is not a substitute for independent verification.
 L25 Separate gentle-ai-verify source-only correction review PASS for S1-S3 with no scoped blockers: durable private marker, validation, retry ordering and preservation confirmed by source/diff inspection; no test execution/scratch or authority mutation. Parent executable proof remains33tests30.830s; correction commit/native targeted validation next, within200diff-line plan.
+L26 Correction committed c43afb509dd7be32ce35ed0d57ce93d759ef8ccd (115 additions+15 deletions=130) within forecast200. Provider targeted validator returned approved; fresh bound STATUS offered acknowledgement; exact acknowledgement returned native-approved-acknowledgement-completed, authority burned, consumed revision sha256:51c3d2f06817b01056ab03f3b894d9080c8048c4e95523685da84419086392ee, target sha256:0e5441d201793d426ecd1505c0d4003b67e499a97f04fa37938e5e7dfa4faa52. No STATUS after burn. Informational R2-stale-test-count is non-blocking and does not reopen this review; historical14/current33 wording clarified in a separate passive docs closure, not another correction.
+L27 Final code audit verified exact branch/commit ancestry, approved correction tree8fa85fb89fca8eed5406f6cae89ec906b52bb0fa, exact18-source-file tracked allowlist, no remotes, and unchanged original source hashes except authorized README/installer/tests correction. Closing work changes only documentation/evidence, never code or user settings; pushes, PRs and live installation remain unauthorized.
+L28 Limitations retained: independent executable probes unavailable (source-only verifier and parent functional proof distinguished); live installer not executed; historical settings navigation timed out124 and model replies remain untested. User-confirmed account linking is human acceptance only. These runtime checks are not silently claimed by local source/distribution closure.
