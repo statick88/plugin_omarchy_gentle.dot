@@ -97,7 +97,8 @@ if name == 'omarchy':
 if name == 'omarchy-shell':
     assert args in [['shell', 'rescanPlugins'], ['shell', 'reloadConfig']]
     record()
-    sys.exit(1 if state.get('shell_failure') else 0)
+    failure = state.get('shell_failure')
+    sys.exit(1 if failure is True or failure == args[1] else 0)
 assert args[:2] == ['--user', '--json=short']
 args = args[2:]
 if args[0] == 'get-property':
@@ -319,11 +320,63 @@ class InstallTests(unittest.TestCase):
         self.save_state()
         result = self.run_cli('--app-path', str(self.app))
         backup, = self.config.parent.glob('shell.json.bak.gentle-dot.*')
-        self.result(result, 2, '', 'Partial installation: shell rescanPlugins failed; inspect installed state before retrying.\n' + f'Backup: {backup}\n')
+        self.result(result, 2, '', 'Partial installation: shell rescanPlugins failed; restore shell availability and rerun this installer.\n' + f'Backup: {backup}\n')
         self.assertTrue(self.target.exists())
         self.assertNotEqual(json.loads(self.config.read_text()), self.original)
         self.assertEqual(self.account.read_text(), 'account sentinel')
         self.assertFalse(any(event[0] == 'busctl' for event in self.events()))
+
+    def assert_shell_failure_recovers(self, operation):
+        self.state['shell_failure'] = operation
+        self.save_state()
+        message = f'shell {operation} failed; restore shell availability and rerun this installer.'
+        first = self.run_cli('--app-path', str(self.app))
+        backup, = self.config.parent.glob('shell.json.bak.gentle-dot.*')
+        self.result(first, 2, '', f'Partial installation: {message}\nBackup: {backup}\n')
+        calls = [['omarchy-shell', ['shell', 'rescanPlugins']]]
+        if operation == 'reloadConfig':
+            calls.append(['omarchy-shell', ['shell', 'reloadConfig']])
+        self.assertEqual(self.events(), calls)
+        partial = self.snapshot()
+        self.assertEqual((self.config.parent / '.gentle-dot-pending').stat().st_mode & 0o777, 0o600)
+        self.result(self.run_cli(), 2, '', f'Partial installation: {message}\n')
+        self.assertEqual(self.snapshot(), partial)
+        self.assertEqual(self.events(), calls * 2)
+        self.assertFalse(json.loads((self.root / 'state').read_text())['hidden'])
+        self.state['shell_failure'] = False
+        self.save_state()
+        self.result(self.run_cli(), 0, 'Installed: one Gentle Dot rose configured.\n')
+        self.assertEqual(self.events(), calls * 2 + [
+            ['omarchy-shell', ['shell', 'rescanPlugins']],
+            ['omarchy-shell', ['shell', 'reloadConfig']],
+            ['busctl', ['--user', '--json=short', 'call', ':1.23', '/Menu',
+                        'com.canonical.dbusmenu', 'Event', 'isvu', '4', 'clicked', 'i', '0', '0']]])
+        partial.pop('.config/omarchy/.gentle-dot-pending')
+        self.assertEqual(self.snapshot(), partial)
+        self.assertEqual(backup.read_bytes(), json.dumps(self.original).encode())
+        self.assertEqual(self.account.read_text(), 'account sentinel')
+        self.assertTrue(json.loads((self.root / 'state').read_text())['hidden'])
+        complete, events = self.snapshot(), self.events()
+        self.result(self.run_cli(), 0, 'Unchanged: one Gentle Dot rose already configured.\n')
+        self.assertEqual(self.snapshot(), complete)
+        self.assertEqual(self.events(), events)
+
+    def test_rescan_failure_retry_recovers_before_hiding(self):
+        self.assert_shell_failure_recovers('rescanPlugins')
+
+    def test_reload_failure_retry_recovers_before_hiding(self):
+        self.assert_shell_failure_recovers('reloadConfig')
+
+    def test_invalid_or_symlinked_recovery_marker_rejects_without_effects(self):
+        marker = self.config.parent / '.gentle-dot-pending'
+        marker.write_text('false')
+        self.reject('Invalid recovery marker; inspect ~/.config/omarchy/.gentle-dot-pending before retrying.')
+        marker.unlink()
+        peer = self.root / 'peer'
+        peer.write_text('[true, true]')
+        marker.symlink_to(peer)
+        self.reject('Unsafe installation path; remove symlinks or non-directory parents first.')
+        self.assertEqual(peer.read_text(), '[true, true]')
 
     def test_private_config_backup_is_private_under_permissive_child_umask(self):
         self.config.chmod(0o600)
@@ -366,7 +419,9 @@ class InstallTests(unittest.TestCase):
         self.result(result, 2, '', 'Partial installation: injected payload open failure\n')
         self.assertTrue(self.target.is_dir())
         self.assertEqual(list(self.target.iterdir()), [])
-        self.assertEqual(self.snapshot(), before)
+        expected = dict(before)
+        expected['.config/omarchy/.gentle-dot-pending'] = b'[true, false]'
+        self.assertEqual(self.snapshot(), expected)
         self.assertEqual(list(self.config.parent.glob('shell.json.bak.gentle-dot.*')), [])
         self.assertEqual(self.events(), [])
 
@@ -441,6 +496,9 @@ options:
                         existing native launcher (one literal path); otherwise
                         preserve widget appPath, then try ~/.local/bin/gentle-
                         dot and PATH
+
+If shell synchronization fails, restore shell availability and rerun. Pending
+synchronization is retried before hiding the native rose.
 ''')
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(self.events(), [])

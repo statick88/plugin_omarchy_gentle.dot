@@ -46,8 +46,14 @@ This is an independent integration, not an official Gentle Dot plugin.
    metadata reject installation before changes. This check cannot prevent a future
    app from reusing that ID: inspect the tray's hidden list if other icons disappear.
 
-   Repeating the command in the same state does not copy, back up, reload or click
-   again. Changed config is backed up beside `shell.json` to a unique
+   After a completed installation, repeating the command in the same state does
+   not copy, back up, reload or click again. Pending shell synchronization is saved
+   privately beside `shell.json` in `.gentle-dot-pending` before payload/config writes.
+   If rescan/reload fails, restore shell availability and rerun: pending operations
+   run again before native hiding, without rewriting installed files or backups.
+   The marker is removed only after successful synchronization; malformed or
+   symlinked markers are rejected for inspection, never followed or silently reset.
+   Changed config is backed up beside `shell.json` to a unique
    `shell.json.bak.gentle-dot.*` path, printed by the command and created with
    owner-only permissions (0600, further restricted by umask). Identical installed
    files are untouched; edited or unexpected destination files are refused, not

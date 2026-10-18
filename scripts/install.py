@@ -203,6 +203,17 @@ def install(explicit):
     try:
         config_path = Path.home() / '.config/omarchy/shell.json'
         raw, stamp, original = read_config(config_path)
+        pending = config_path.with_name('.gentle-dot-pending')
+        regular_path(pending)
+        recovery = [False, False]
+        if pending.exists():
+            try:
+                recovery = json.loads(pending.read_bytes())
+                if (not isinstance(recovery, list) or len(recovery) != 2
+                        or any(type(flag) is not bool for flag in recovery) or not any(recovery)):
+                    raise ValueError('Invalid pending operations')
+            except (OSError, ValueError):
+                raise Rejected('Invalid recovery marker; inspect ~/.config/omarchy/.gentle-dot-pending before retrying.') from None
         config = copy.deepcopy(original)
         layout = config['bar']['layout']
         entries = [entry for section in ('left', 'center', 'right') for entry in layout[section]]
@@ -223,6 +234,7 @@ def install(explicit):
             if entry['id'] == 'omarchy.tray' and native_id not in entry.get('hidden', []):
                 entry.setdefault('hidden', []).append(native_id)
         changed = config != original
+        rescan, reload_config = bool(missing) or recovery[0], changed or recovery[1]
         # The repository may contain vendor symlinks: validate only the seven files.
         with tempfile.TemporaryDirectory(prefix='gentle-dot-payload-') as temp:
             stage = Path(temp) / PLUGIN
@@ -244,6 +256,22 @@ def install(explicit):
                 fd = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
                 with os.fdopen(fd, 'wb') as stream:
                     stream.write(raw)
+            if rescan or reload_config:
+                # Persist intent before payload/config changes; retries must not infer
+                # shell activation from the files already being present on disk.
+                committed = True
+                temp_pending = None
+                try:
+                    with tempfile.NamedTemporaryFile(dir=config_path.parent, prefix='.gentle-dot-pending-', delete=False) as stream:
+                        temp_pending = Path(stream.name)
+                        stream.write(json.dumps([rescan, reload_config]).encode())
+                        stream.flush()
+                        os.fsync(stream.fileno())
+                    regular_path(pending)
+                    os.replace(temp_pending, pending)
+                finally:
+                    if temp_pending is not None and temp_pending.exists():
+                        temp_pending.unlink()
             for name in sorted(missing):
                 path = target / name
                 regular_path(path)
@@ -266,12 +294,14 @@ def install(explicit):
                 finally:
                     if temp_path is not None and temp_path.exists():
                         temp_path.unlink()
-        if missing:
+        if rescan:
             command(['omarchy-shell', 'shell', 'rescanPlugins'],
-                    'shell rescanPlugins failed; inspect installed state before retrying.')
-        if changed:
+                    'shell rescanPlugins failed; restore shell availability and rerun this installer.')
+        if reload_config:
             command(['omarchy-shell', 'shell', 'reloadConfig'],
-                    'shell reloadConfig failed; inspect shell.json and reload it before retrying.')
+                    'shell reloadConfig failed; restore shell availability and rerun this installer.')
+        if rescan or reload_config:
+            pending.unlink()
         # Reconfirm public identity after commit; never click a stale menu item.
         fresh = native()
         if fresh[:3] != (service, menu_path, native_id):
@@ -289,7 +319,7 @@ def install(explicit):
                 time.sleep(0.1)
             else:
                 raise Rejected('Native rose hiding was not confirmed; inspect its tray menu and retry.')
-        action = 'Installed: one Gentle Dot rose configured.' if missing or changed or not hidden_now else 'Unchanged: one Gentle Dot rose already configured.'
+        action = 'Installed: one Gentle Dot rose configured.' if missing or changed or any(recovery) or not hidden_now else 'Unchanged: one Gentle Dot rose already configured.'
         print(action)
         if backup:
             print(f'Backup: {backup}')
@@ -303,7 +333,7 @@ def install(explicit):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Install only the Omarchy widget and hide the already-running native Gentle Dot controls; never install, start or log into the app.')
+    parser = argparse.ArgumentParser(description='Install only the Omarchy widget and hide the already-running native Gentle Dot controls; never install, start or log into the app.', epilog='If shell synchronization fails, restore shell availability and rerun. Pending synchronization is retried before hiding the native rose.')
     parser.add_argument('--app-path', metavar='EXECUTABLE', help='existing native launcher (one literal path); otherwise preserve widget appPath, then try ~/.local/bin/gentle-dot and PATH')
     args = parser.parse_args()
     return install(args.app_path)
