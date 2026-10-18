@@ -71,17 +71,49 @@ omarchy plugin remove statick.gentle-dot
 Removal leaves the native app and all account data intact. This widget does not
 hide or alter native tray/floating controls.
 
+## Optional project-local native build
+
+For a fresh checkout, prepare official sources manually from the project root
+before running the build script (network and build steps are opt-in):
+
+```sh
+mkdir -p vendor
+git clone https://github.com/Gentleman-Programming/gentle-dot.git vendor/gentle-dot
+git -C vendor/gentle-dot checkout --detach 8cb20ee888c88be2b359258a65499c20b59e2a86
+# Retain the Rust installer for review; do not execute it yet:
+/bin/sh scripts/build-native.sh
+# Inspect .gentle-dot-install/rustup-init.sh before explicitly approving execution:
+/bin/sh scripts/build-native.sh --build-reviewed-installer
+```
+
+If sources already exist, preserve them; do not clone over them. The script
+refuses any HEAD other than the pinned revision. It requires Node 24+ and Arch
+development libraries listed in upstream `scripts/linux/setup-arch.sh`; do not
+run that upstream installer unchanged, because it writes outside this project.
+The script prepares local Rust (upstream requires 1.90+) and pnpm 11.5.0, builds
+the UI and Tauri artifact with `--no-bundle`, and records runtime/toolchain paths.
+It does not install a system package, change shell profiles or launch the app.
+Retain both ignored directories, `vendor/gentle-dot` and `.gentle-dot-install`:
+the artifact records Node and daemon source paths. The resulting executable is
+`vendor/gentle-dot/apps/desktop/src-tauri/target/release/gentle-dot`.
+Do not copy vendor dependencies, caches or app data into the plugin folder;
+whole-tree validation after a build can reject dependency symlinks.
+
 ## Checks and limits
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_toggle.py' -v
+python3 -m unittest discover -s tests -p 'test_build_native.py' -v
 ```
 
 Seven isolated fake-executable tests cover literal paths, fail-closed errors,
 empty-path lookup, local precedence, broken-link PATH fallback, missing-app
-no-mutation and app failure propagation. They do not test GUI rendering, settings,
-chat or account linking. Manually check rose open/close, theme/orientation,
-settings and workspace placement separately; do not enter credentials here.
+no-mutation and app failure propagation. Two build-script tests check retained
+installer preparation and distinct contained npm configs using fake tools (nine
+tests total). They do not prove downloads, a real native build, GUI rendering,
+settings, chat or account linking. Manually check rose open/close,
+theme/orientation, settings and workspace placement separately; do not enter
+credentials here.
 
 ## Official references
 
