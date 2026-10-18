@@ -99,21 +99,62 @@ the artifact records Node and daemon source paths. The resulting executable is
 Do not copy vendor dependencies, caches or app data into the plugin folder;
 whole-tree validation after a build can reject dependency symlinks.
 
+### Use the prepared launcher
+
+Only after a successful build, explicitly launch with:
+
+```sh
+/bin/sh bin/gentle-dot --toggle
+```
+
+For bar use, select the executable launcher with your actual absolute project path:
+
+```json
+{"id": "statick.gentle-dot", "appPath": "/absolute/path/to/plugin_omarchy_gentle.dot/bin/gentle-dot"}
+```
+
+The launcher forwards literal arguments and native exit status; a missing artifact
+fails with exit 127 before creating state. It keeps app data at
+`.gentle-dot-install/data`, uses recorded `runtime-path` (or local tool paths),
+and selects private Engram on port **17438**, which must be free. It does not
+replace a global launcher or configure autostart.
+
+The native app/browser retain desktop HOME, XDG config/data/cache/state,
+BROWSER, XDG_CURRENT_DESKTOP, XDG_SESSION_TYPE, display and D-Bus variables.
+Missing/empty XDG directories default beneath HOME; missing/empty HOME falls
+back to `.gentle-dot-install/home` without account-database lookups. Absent
+browser/desktop markers stay empty. Values are literal environment arguments.
+The allowlist drops inherited provider credentials and agent overrides; it does
+not copy credentials or populate desktop configuration directories.
+
+Engine isolation is upstream's responsibility: `packages/daemon/src/isolation.ts`
+in the retained source sets engine HOME/XDG under `.gentle-dot-install/data/home`.
+Account storage stays under the app data directory (`data/agent/auth.json`).
+No accounts, conversations or sessions are moved or deleted. This is **not a
+sandbox**: the native app retains desktop D-Bus/Secret Service access. Environment
+fixture coverage does not establish OAuth success; login is a separate human action.
+See [the historical preparation record](odd/tasks/persistent-gentle-dot.md) for
+prior work and its acceptance limits, not additional installation automation.
+
 ## Checks and limits
 
 ```sh
 python3 -m unittest discover -s tests -p 'test_toggle.py' -v
 python3 -m unittest discover -s tests -p 'test_build_native.py' -v
+python3 -m unittest discover -s tests -p 'test_native_launcher.py' -v
 ```
 
 Seven isolated fake-executable tests cover literal paths, fail-closed errors,
 empty-path lookup, local precedence, broken-link PATH fallback, missing-app
 no-mutation and app failure propagation. Two build-script tests check retained
-installer preparation and distinct contained npm configs using fake tools (nine
-tests total). They do not prove downloads, a real native build, GUI rendering,
-settings, chat or account linking. Manually check rose open/close,
-theme/orientation, settings and workspace placement separately; do not enter
-credentials here.
+installer preparation and distinct contained npm configs using fake tools.
+Five native-launcher tests cover missing-artifact no-mutation, arguments/failure,
+recorded PATH/private Engram, desktop variables reaching a fake browser with
+credential canaries absent and fixture data unchanged, and HOME/XDG fallbacks
+(14 tests total). They do not prove downloads, real builds or automated OAuth.
+Prior manual rose open/close passed; a human confirmed OpenAI/Codex linking.
+Settings navigation timed out and model replies remain untested. Manually check
+theme/orientation and workspace placement separately; do not enter credentials here.
 
 ## Official references
 
