@@ -8,9 +8,11 @@ import time
 
 
 class FakeServer:
-    def __init__(self, token="synthetic-capability", ready=True, history="normal", delay=0):
+    def __init__(self, token="synthetic-capability", ready=True, history="normal", delay=0, send_events=None, ready_events=None):
         self.token, self.ready = token, ready
         self.history, self.delay = history, delay
+        self.send_events = send_events or []
+        self.ready_events = ready_events or []
         self.connections = self.messages = 0
         self.received = []
         self.sock = socket.socket()
@@ -45,8 +47,13 @@ class FakeServer:
                     self.received.append(message)
                     if message.get("type") == "hello" and self.ready:
                         self._send(conn, {"type": "ready", "agentState": "idle", "model": "safe " + self.token})
+                        for event in self.ready_events:
+                            self._send(conn, event)
                     elif message.get("type") == "get_history":
                         self._history(conn)
+                    elif message.get("type") == "send":
+                        for event in self.send_events:
+                            self._send(conn, event)
         except OSError:
             pass
 

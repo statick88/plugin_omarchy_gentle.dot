@@ -35,4 +35,5 @@
 !/tests/test_native_install.py
 !/tests/test_toggle.py
 !/tests/test_backend_bridge.py
+!/tests/test_backend_chat.py
 !/tests/backend_fixture.py

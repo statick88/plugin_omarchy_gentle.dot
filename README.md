@@ -2,7 +2,7 @@
 
 An independent Omarchy 4 / Quickshell bar widget with an owned, compact Gentle
 Dot chat popup. Its header can still open or hide the **official Gentle Dot desktop
-panel** for the existing full app. Pairing is opt-in and read-only at this stage.
+panel** for the existing full app. Popup pairing and history are opt-in and read-only by default.
 
 ## Install
 
@@ -121,9 +121,42 @@ than 65000. A timeout, peer close, send failure, or native `error` frame reports
 generic `{"type":"error","message":"Connection unavailable."}`, never an
 empty history success. `{"command":"disconnect"}` clears the in-memory
 connection and emits disconnected status. Errors are generic and capability values are redacted.
-There is no automatic reconnect, replay, send, abort, account, model, or
-conversation operation. The native daemon is one shared session: this helper adds
-one read-only client and never starts a fresh daemon.
+There is no automatic reconnect, replay, account, model, or conversation operation.
+The native daemon is one shared session: this helper adds a client and never starts
+a fresh daemon.
+
+### Shared write-control helper API (T20)
+
+The popup remains read-only until its later UI unit wires these helper commands. A
+connected controller may explicitly grant this process temporary write access:
+
+```json
+{"command":"write_access","enabled":true,"consent":true}
+```
+
+The helper replies `{"type":"write_access","enabled":true}`. Pairing consent
+never grants this access. `{"command":"write_access","enabled":false}` revokes
+it immediately, including while a history request is pending; disconnect, a new
+connection, peer close, and stdin EOF also revoke it. Revocation does **not** send
+an abort frame: Stop affects the daemon's shared current turn and needs its own
+explicit confirmation each time.
+
+With active access, a controller can issue exactly one deliberate frame per action:
+`{"command":"send","text":"...","consent":true}` maps to native
+`{"type":"send","text":"..."}`; blank or oversized text is refused.
+`{"command":"abort","confirmed":true}` maps to `{"type":"abort"}`. Any
+denied, disconnected, revoked, malformed, or unconfirmed request returns generic
+`Request refused.` without a native frame, retry, or queued replay. Sending while
+busy can steer the shared run; Stop can interrupt a turn started by another client.
+
+While write access is active, normalized shared daemon broadcasts use
+`stream` events for `user_message`, `message_delta`, and replacing
+`message_done` text (each includes a bounded `messageId` and text/delta; done may
+include `stopped` or generic `error:true`). Known `agent_state` is forwarded;
+permission asks become `action_required` directing the user to the full app, and
+native errors become generic `model_error`. Unknown/malformed events are ignored.
+Read-only mode emits none of these unsolicited stream events. The helper never
+answers permissions or performs account, model, session, PIN, or tool approvals.
 
 `node scripts/backend_bridge.mjs --help` documents the command names. Development
 coverage uses only a Python-stdlib fake loopback WebSocket and temporary synthetic
