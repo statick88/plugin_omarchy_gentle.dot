@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-PAYLOAD = ('manifest.json', 'BarWidget.qml', 'toggle.sh', 'assets/rose-glyph.svg',
+PAYLOAD = ('manifest.json', 'BarWidget.qml', 'Panel.qml', 'toggle.sh', 'assets/rose-glyph.svg',
            'LICENSE', 'LICENSES/gentle-dot-MIT.txt', 'THIRD_PARTY_NOTICES.md')
 PLUGIN = 'statick.gentle-dot'
 NATIVE_ID = 'tray-icon tray app main'

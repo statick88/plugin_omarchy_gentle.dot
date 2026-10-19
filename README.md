@@ -1,8 +1,9 @@
 # Gentle Dot for Omarchy
 
-An independent Omarchy 4 / Quickshell bar widget that opens or hides the
-**official Gentle Dot desktop panel**. Chat and settings remain in the native app.
-The plugin does not implement another assistant or read account credentials.
+An independent Omarchy 4 / Quickshell bar widget with an owned, compact Gentle
+Dot chat popup. The popup is presentation-only for now: it does not implement an
+assistant, contact a backend, or read account credentials. Its header can still open
+or hide the **official Gentle Dot desktop panel** for the existing full app.
 
 ## Install
 
@@ -53,13 +54,36 @@ The plugin does not implement another assistant or read account credentials.
    and a valid version-1 `~/.config/omarchy/shell.json` with all three layout sections.
    Use `python3 scripts/install.py --help` for options. Marketplace installation
    does not run this setup command or arbitrary hooks.
-3. Left-click the bar rose to toggle the native panel. A failed launcher produces
-   an actionable tooltip; repeated clicks are ignored while launch is running.
+3. Left-click the bar rose to toggle the chat popup. Press Escape or the back button
+   to dismiss it; focus starts in the composer. The header's **Open Gentle Dot**
+   control preserves the native-panel toggle, and a failed native launch produces an
+   actionable tooltip.
 
-The widget installer stages and validates only seven plugin runtime files: manifest,
-QML, toggle script, rose SVG and three license/notice files. Native source, build output,
-and caches remain private user-managed state, not plugin payload. The default and
-`--app-path` paths do not download, build, install, start, stop or log into the native app.
+## Popup state and next backend unit
+
+The popup uses active bar foreground colors, a Gentle Dot rose accent, and the system
+monospace font. It intentionally contains no production conversation data while
+connection is unavailable. The checked-in preview is a finite isolated Quickshell window with synthetic data only;
+it loads the production `Panel.qml` against the installed Omarchy SDK and never contacts
+Gentle Dot:
+
+```sh
+python3 tests/popup_preview/run_preview.py
+```
+
+T12 may inject one small controller object into `BarWidget.chatController` (and the
+popup's `chatController`) with these properties: `messages` as normalized plain-text
+`[{id, role, text}]`, `connectionState`, `statusText`, `modelLabel`, `streaming`,
+`canSend`, and `canStop`. It provides `send(text)` and `abort()`. Missing or
+disconnected controllers disable send/stop and retain the explanatory status; no
+session, model, account, retry, or message is created by this UI. Message text is
+rendered as plain text, not active markup or resources.
+
+The widget installer stages and validates only eight plugin runtime files: manifest,
+the bar and popup QML, toggle script, rose SVG and three license/notice files. Native
+source, build output, and caches remain private user-managed state, not plugin payload.
+The default and `--app-path` paths do not download, build, install, start, stop or log
+into the native app.
 
 ## One visible rose, safely
 
@@ -136,10 +160,10 @@ security audit: community plugins run unsandboxed and require source inspection.
 
 | Files | Purpose |
 | --- | --- |
-| `manifest.json`, `BarWidget.qml`, `toggle.sh` | Plugin identity, bar widget and literal native toggle |
+| `manifest.json`, `BarWidget.qml`, `Panel.qml`, `toggle.sh` | Plugin identity, popup-enabled bar widget, popup presentation and literal native toggle |
 | `assets/rose-glyph.svg` | Official monochrome rose, tinted by the bar theme |
 | `scripts/install.py`, `scripts/native_install.py` | Explicit plugin installer and guided pinned native-source setup |
-| `tests/test_install.py`, `tests/test_native_install.py`, `tests/test_toggle.py` | Plugin CLI regression tests |
+| `tests/test_install.py`, `tests/test_popup_ui.py`, `tests/popup_preview/`, `tests/test_native_install.py`, `tests/test_toggle.py` | Plugin CLI and isolated synthetic Quickshell popup regression tests |
 | `README.md`, `.gitignore` | Plugin documentation and local-state exclusions |
 | `LICENSE`, `LICENSES/gentle-dot-MIT.txt`, `THIRD_PARTY_NOTICES.md` | MIT license and preserved upstream attribution |
 

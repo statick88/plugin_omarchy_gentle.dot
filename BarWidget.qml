@@ -10,8 +10,30 @@ Ui.BarWidget {
     moduleName: "statick.gentle-dot"
 
     property string launchError: ""
+    // T12 supplies this narrow controller; absent means disconnected and fail-closed.
+    property var chatController: null
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
+
+    function openNativeApp() {
+        if (!toggleProcess.running) {
+            launchError = ""
+            toggleProcess.running = true
+        }
+    }
+
+    Panel {
+        id: popup
+        parent: root
+        x: Math.min(Math.max(0, button.x + button.width - width), Math.max(0, root.width - width))
+        y: button.y + button.height + 8
+        anchorItem: button
+        chatController: root.chatController
+        onRequestNativeOpen: {
+            popup.close()
+            root.openNativeApp()
+        }
+    }
 
     Process {
         id: toggleProcess
@@ -48,12 +70,10 @@ Ui.BarWidget {
                 }
             }
         }
-        tooltipText: root.launchError || "Gentle Dot for Omarchy — toggle chat and settings"
-        onPressed: function(button) {
-            if (button === Qt.LeftButton && !toggleProcess.running) {
-                root.launchError = ""
-                toggleProcess.running = true
-            }
+        tooltipText: root.launchError || "Gentle Dot — open chat popup"
+        onPressed: function(mouseButton) {
+            if (mouseButton === Qt.LeftButton)
+                popup.opened ? popup.close() : popup.open()
         }
     }
 }
