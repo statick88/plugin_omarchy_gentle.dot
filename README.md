@@ -85,6 +85,45 @@ source, build output, and caches remain private user-managed state, not plugin p
 The default and `--app-path` paths do not download, build, install, start, stop or log
 into the native app.
 
+## Read-only local bridge (T16)
+
+`scripts/backend_bridge.mjs` is a private JSON-lines stdin/stdout helper for the
+future popup controller; it is not installed in the plugin payload or wired to QML.
+It never starts the native app or discovers credentials. The controller must first
+obtain a human pairing decision, then send exactly one line:
+
+```json
+{"command":"connect","consent":true,"url":"ws://127.0.0.1:4317/ws","tokenFile":"/chosen/absolute/token"}
+```
+
+Only literal `ws://127.0.0.1:<port>/ws` or `ws://[::1]:<port>/ws` endpoints are
+accepted. `tokenFile` must be a user-chosen absolute file named `token`, owned by
+the current user, private, regular, and directly within a current-user private
+0700 or 0711 directory. The helper opens it read-only without following the final
+symlink. Invalid input and missing consent do not read the token or connect.
+
+After a `{"type":"status","state":"connected","modelLabel"?}` response,
+the controller may send `{"command":"history"}`. Its only request after the
+protocol-v1 hello is `get_history`; its response is
+`{"type":"history","history":[{"id","role","text"}]}` with plain,
+bounded text. The default history wait is 65 seconds to accommodate native startup;
+a caller may instead supply an integer `timeoutMs` greater than zero and no greater
+than 65000. A timeout, peer close, send failure, or native `error` frame reports
+generic `{"type":"error","message":"Connection unavailable."}`, never an
+empty history success. `{"command":"disconnect"}` clears the in-memory
+connection and emits disconnected status. Errors are generic and capability values are redacted.
+There is no automatic reconnect, replay, send, abort, account, model, or
+conversation operation. The native daemon is one shared session: this helper adds
+one read-only client and never starts a fresh daemon.
+
+`node scripts/backend_bridge.mjs --help` documents the command names. Development
+coverage uses only a Python-stdlib fake loopback WebSocket and temporary synthetic
+tokens:
+
+```sh
+PYTHONPATH=tests python3 -m unittest test_backend_bridge
+```
+
 ## One visible rose, safely
 
 The installer preserves existing widget placement/settings and `appPath` unless

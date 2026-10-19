@@ -19,6 +19,7 @@
 /scripts/*
 !/scripts/install.py
 !/scripts/native_install.py
+!/scripts/backend_bridge.mjs
 !/tests/
 /tests/*
 !/tests/test_install.py
@@ -30,3 +31,5 @@
 !/tests/popup_preview/shell.qml
 !/tests/test_native_install.py
 !/tests/test_toggle.py
+!/tests/test_backend_bridge.py
+!/tests/backend_fixture.py
