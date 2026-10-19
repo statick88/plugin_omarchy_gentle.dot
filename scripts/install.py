@@ -14,8 +14,9 @@ import time
 from native_install import NativeRejected, setup as setup_native
 
 PLUGIN = 'statick.gentle-dot'
-PAYLOAD = ('manifest.json', 'BarWidget.qml', 'Panel.qml', 'toggle.sh', 'assets/rose-glyph.svg',
-           'LICENSE', 'LICENSES/gentle-dot-MIT.txt', 'THIRD_PARTY_NOTICES.md')
+PAYLOAD = ('manifest.json', 'BarWidget.qml', 'Panel.qml', 'BackendController.qml', 'toggle.sh',
+           'assets/rose-glyph.svg', 'scripts/backend_bridge.mjs', 'LICENSE',
+           'LICENSES/gentle-dot-MIT.txt', 'THIRD_PARTY_NOTICES.md')
 IDENTITY_ERROR = ('Cannot uniquely identify Gentle Dot without an ID collision; '
                   'start the installed app and inspect its tray menu.')
 CONFIG_ERROR = 'Invalid shell.json; restore a valid version-1 bar layout first.'
@@ -237,7 +238,7 @@ def install(explicit, native_committed=False):
                 entry.setdefault('hidden', []).append(native_id)
         changed = config != original
         rescan, reload_config = bool(missing) or recovery[0], changed or recovery[1]
-        # The repository may contain vendor symlinks: validate only the eight files.
+        # The repository may contain vendor symlinks: validate only the ten runtime files.
         with tempfile.TemporaryDirectory(prefix='gentle-dot-payload-') as temp:
             stage = Path(temp) / PLUGIN
             for name, content in data.items():

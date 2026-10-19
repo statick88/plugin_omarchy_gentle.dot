@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run Panel.qml in an isolated Quickshell process with no real desktop state."""
+import argparse
 import os
 from pathlib import Path
 import shutil
@@ -13,6 +14,12 @@ SDK = Path('/usr/share/omarchy/shell')
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--pairing', nargs=2, metavar=('LOOPBACK_URL', 'TOKEN_FILE'),
+                        help='run the synthetic explicit-pairing preview')
+    parser.add_argument('--bridge-exit', action='store_true',
+                        help='make the private synthetic node bridge exit after connected')
+    args = parser.parse_args()
     quickshell = shutil.which('quickshell')
     if quickshell is None:
         print('quickshell is unavailable', file=sys.stderr)
@@ -38,8 +45,29 @@ def main():
             display = os.path.join(live_runtime, display)
         config = runtime / 'preview'
         config.mkdir()
-        (config / 'shell.qml').write_bytes(SHELL.read_bytes())
-        (config / 'plugin').symlink_to(ROOT, target_is_directory=True)
+        shell_source = ROOT / 'tests' / 'popup_preview' / ('pairing.qml' if args.pairing else 'shell.qml')
+        (config / 'shell.qml').write_bytes(shell_source.read_bytes())
+        plugin = config / 'plugin'
+        if args.pairing:
+            plugin.mkdir()
+            for name in ('BackendController.qml', 'Panel.qml'):
+                shutil.copyfile(ROOT / name, plugin / name)
+            (plugin / 'scripts').mkdir()
+            shutil.copyfile(ROOT / 'scripts' / 'backend_bridge.mjs', plugin / 'scripts' / 'backend_bridge.mjs')
+            panel = (plugin / 'Panel.qml')
+            source = panel.read_text()
+            replacements = (("    property var chatController: null", "    property var chatController: null\n    readonly property var verificationPairing: pairing"),
+                ("        property bool accepted: false", "        property bool accepted: false\n        readonly property var verificationEndpoint: endpointInput\n        readonly property var verificationToken: tokenInput\n        readonly property var verificationToggle: consentToggle\n        readonly property var verificationConnect: connectButton\n        readonly property var verificationDisconnect: disconnectButton"),
+                ("            Ui.Toggle {\n", "            Ui.Toggle {\n                id: consentToggle\n"),
+                ("Ui.Button { text: \"Connect\"", "Ui.Button { id: connectButton; text: \"Connect\""),
+                ("Ui.Button { text: \"Disconnect\"", "Ui.Button { id: disconnectButton; text: \"Disconnect\""))
+            for old, new in replacements:
+                if source.count(old) != 1:
+                    raise RuntimeError('pairing probe injection target changed')
+                source = source.replace(old, new)
+            panel.write_text(source)
+        else:
+            plugin.symlink_to(ROOT, target_is_directory=True)
         qml_root = runtime / 'qml'
         qml_root.mkdir()
         (qml_root / 'qs').symlink_to(SDK, target_is_directory=True)
@@ -54,16 +82,27 @@ def main():
             'WAYLAND_DISPLAY': display,
             'XDG_RUNTIME_DIR': str(private_runtime),
         }
+        if args.pairing:
+            env.update({'GENTLE_PAIR_URL': args.pairing[0], 'GENTLE_PAIR_TOKEN': args.pairing[1]})
+        if args.bridge_exit:
+            bin_dir = runtime / 'bin'
+            bin_dir.mkdir()
+            node = bin_dir / 'node'
+            node.write_text('#!/bin/sh\nif [ "$1" = "--version" ]; then echo v24.0.0; exit 0; fi\nprintf \'{"type":"status","state":"connected"}\\n\'\nexit 0\n')
+            node.chmod(0o700)
+            env['PATH'] = str(bin_dir)
+            env['GENTLE_BRIDGE_EXIT'] = '1'
         result = subprocess.run([quickshell, '--path', str(config / 'shell.qml'), '--no-color'], env=env,
                                 text=True, capture_output=True, timeout=10)
         log_notice = 'Saving logs to "' + str(private_runtime) + '/'
         isolated = (private_runtime.stat().st_mode & 0o777) == 0o700 and log_notice in result.stdout
-    marker = next((line for line in result.stdout.splitlines() if 'T11_RESULT' in line), '')
+    marker_name = 'T17_RESULT' if args.pairing else 'T11_RESULT'
+    marker = next((line for line in result.stdout.splitlines() if marker_name in line), '')
     if not isolated:
         result = subprocess.CompletedProcess(result.args, 1, result.stdout,
             result.stderr + 'preview runtime/log path was not private\n')
     if result.returncode == 0 and marker:
-        print('T11_RESULT ' + marker.split('T11_RESULT ', 1)[1])
+        print(marker_name + ' ' + marker.split(marker_name + ' ', 1)[1])
     else:
         sys.stdout.write(result.stdout)
         sys.stderr.write(result.stderr)

@@ -7,6 +7,7 @@
 !/manifest.json
 !/BarWidget.qml
 !/Panel.qml
+!/BackendController.qml
 !/toggle.sh
 !/THIRD_PARTY_NOTICES.md
 !/assets/
@@ -24,10 +25,12 @@
 /tests/*
 !/tests/test_install.py
 !/tests/test_popup_ui.py
+!/tests/test_pairing_ui.py
 !/tests/popup_preview/
 /tests/popup_preview/*
 !/tests/popup_preview/popup_preview.py
 !/tests/popup_preview/run_preview.py
+!/tests/popup_preview/pairing.qml
 !/tests/popup_preview/shell.qml
 !/tests/test_native_install.py
 !/tests/test_toggle.py

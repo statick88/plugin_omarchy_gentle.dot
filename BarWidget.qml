@@ -10,8 +10,10 @@ Ui.BarWidget {
     moduleName: "statick.gentle-dot"
 
     property string launchError: ""
-    // T12 supplies this narrow controller; absent means disconnected and fail-closed.
-    property var chatController: null
+    // External injection stays available; the default creates no process until Connect.
+    property var chatController: backend
+
+    BackendController { id: backend }
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
 

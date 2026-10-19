@@ -1,9 +1,8 @@
 # Gentle Dot for Omarchy
 
 An independent Omarchy 4 / Quickshell bar widget with an owned, compact Gentle
-Dot chat popup. The popup is presentation-only for now: it does not implement an
-assistant, contact a backend, or read account credentials. Its header can still open
-or hide the **official Gentle Dot desktop panel** for the existing full app.
+Dot chat popup. Its header can still open or hide the **official Gentle Dot desktop
+panel** for the existing full app. Pairing is opt-in and read-only at this stage.
 
 ## Install
 
@@ -59,36 +58,46 @@ or hide the **official Gentle Dot desktop panel** for the existing full app.
    control preserves the native-panel toggle, and a failed native launch produces an
    actionable tooltip.
 
-## Popup state and next backend unit
+## Popup pairing and read-only history
 
 The popup uses active bar foreground colors, a Gentle Dot rose accent, and the system
-monospace font. It intentionally contains no production conversation data while
-connection is unavailable. The checked-in preview is a finite isolated Quickshell window with synthetic data only;
-it loads the production `Panel.qml` against the installed Omarchy SDK and never contacts
-Gentle Dot:
+monospace font. It opens disconnected and never starts a helper, reads a file, or
+contacts a backend until the user chooses an absolute local `token` file, checks the
+explicit consent control, and selects **Connect**. The default endpoint is
+`ws://127.0.0.1:4317/ws`; it is loopback-only. The chosen endpoint, file path, and
+consent are held only for the current Quickshell session and cleared by **Disconnect**.
+The token value is never placed in QML, configuration, argv, or logs.
+
+After connecting, the popup requests normalized plain-text shared-session history. It
+does not send messages, abort streams, change models/accounts/conversations, reconnect,
+or start the native app; sending is a later unit. Errors do not replace existing history
+with an empty success. Node 24+ must already be available on Quickshell's PATH; a missing
+runtime fails closed with an actionable message and the native full-app option remains.
+
+The checked-in preview is a finite isolated Quickshell window with synthetic data only;
+it loads the production `Panel.qml` and `BackendController.qml` against the installed
+Omarchy SDK and never contacts Gentle Dot:
 
 ```sh
 python3 tests/popup_preview/run_preview.py
 ```
 
-T12 may inject one small controller object into `BarWidget.chatController` (and the
-popup's `chatController`) with these properties: `messages` as normalized plain-text
-`[{id, role, text}]`, `connectionState`, `statusText`, `modelLabel`, `streaming`,
-`canSend`, and `canStop`. It provides `send(text)` and `abort()`. Missing or
-disconnected controllers disable send/stop and retain the explanatory status; no
-session, model, account, retry, or message is created by this UI. Message text is
-rendered as plain text, not active markup or resources.
+`BarWidget.chatController` remains an external seam and defaults to the bundled
+controller. It exposes normalized plain-text `messages` as `[{id, role, text}]`,
+`connectionState`, `statusText`, `modelLabel`, `streaming`, `canSend`, and `canStop`.
+Sending and stopping remain disabled in this read-only stage. Message text is rendered
+as plain text, not active markup or resources.
 
-The widget installer stages and validates only eight plugin runtime files: manifest,
-the bar and popup QML, toggle script, rose SVG and three license/notice files. Native
-source, build output, and caches remain private user-managed state, not plugin payload.
+The widget installer stages and validates ten plugin runtime files, including
+`BackendController.qml` and the private `scripts/backend_bridge.mjs`; native source,
+build output, and caches remain private user-managed state, not plugin payload.
 The default and `--app-path` paths do not download, build, install, start, stop or log
 into the native app.
 
 ## Read-only local bridge (T16)
 
-`scripts/backend_bridge.mjs` is a private JSON-lines stdin/stdout helper for the
-future popup controller; it is not installed in the plugin payload or wired to QML.
+`scripts/backend_bridge.mjs` is a private JSON-lines stdin/stdout helper used only
+after the popup's explicit pairing action.
 It never starts the native app or discovers credentials. The controller must first
 obtain a human pairing decision, then send exactly one line:
 

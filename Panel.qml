@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui as Ui
@@ -94,9 +95,17 @@ Ui.Panel {
 
                 Ui.PanelSeparator { id: rule; anchors.top: header.bottom; width: parent.width; foreground: Commons.Color.popups.text }
 
+                PairingForm {
+                    id: pairing
+                    anchors.top: rule.bottom
+                    width: parent.width
+                    controller: root.chatController
+                    visible: root.connectionState !== "connected"
+                }
+
                 ListView {
                     id: transcript
-                    anchors.top: rule.bottom; anchors.bottom: status.top
+                    anchors.top: pairing.visible ? pairing.bottom : rule.bottom; anchors.bottom: status.top
                     width: parent.width; clip: true; model: root.messages
                     spacing: Style.spacing.md; topMargin: Style.spacing.md; bottomMargin: Style.spacing.md
                     delegate: Item {
@@ -155,6 +164,67 @@ Ui.Panel {
                     }
                 }
             }
+        }
+    }
+
+    component PairingForm: Item {
+        id: pairingRoot
+        property var controller: null
+        property bool accepted: false
+        implicitHeight: column.implicitHeight + Style.spacing.md
+
+        function connect() { if (controller) controller.connect(endpointInput.text, tokenInput.text, accepted) }
+        function disconnect() {
+            if (controller) controller.disconnect()
+            accepted = false
+            tokenInput.text = ""
+            endpointInput.text = "ws://127.0.0.1:4317/ws"
+        }
+
+        Column {
+            id: column
+            width: parent.width
+            spacing: Style.spacing.sm
+            Text { width: parent.width; textFormat: Text.PlainText; wrapMode: Text.Wrap; text: "Pair this popup with a local Gentle Dot session. It can read shared-session history only; sending arrives later."; color: Commons.Color.muted; font.family: root.themeFontFamily; font.pixelSize: Style.font.caption }
+            Ui.TextField {
+                id: endpointInput
+                width: parent.width
+                text: "ws://127.0.0.1:4317/ws"
+                placeholderText: "Loopback endpoint"
+                foreground: Commons.Color.popups.text
+                accent: Commons.Color.accent
+            }
+            Row {
+                width: parent.width; spacing: Style.spacing.sm
+                Ui.TextField {
+                    id: tokenInput
+                    width: parent.width - pick.implicitWidth - parent.spacing
+                    placeholderText: "Absolute path to the selected token file"
+                    foreground: Commons.Color.popups.text
+                    accent: Commons.Color.accent
+                }
+                Ui.Button { id: pick; text: "Choose file"; foreground: Commons.Color.popups.text; accent: Commons.Color.accent; bordered: true; onClicked: picker.open() }
+            }
+            Ui.Toggle {
+                width: parent.width
+                label: "I consent to read-only history"
+                description: "The selected local capability file stays in memory; this shares the existing Gentle Dot session."
+                checked: pairingRoot.accepted
+                foreground: Commons.Color.popups.text
+                accent: Commons.Color.accent
+                onClicked: pairingRoot.accepted = !pairingRoot.accepted
+            }
+            Row {
+                spacing: Style.spacing.sm
+                Ui.Button { text: "Connect"; foreground: Commons.Color.popups.text; accent: Commons.Color.accent; bordered: true; opacity: pairingRoot.accepted && tokenInput.text.length > 0 ? 1 : .45; onClicked: pairingRoot.connect() }
+                Ui.Button { text: "Disconnect"; foreground: Commons.Color.popups.text; accent: Commons.Color.accent; bordered: true; onClicked: pairingRoot.disconnect() }
+            }
+        }
+        FileDialog {
+            id: picker
+            title: "Choose Gentle Dot token file"
+            fileMode: FileDialog.OpenFile
+            onAccepted: tokenInput.text = decodeURIComponent(selectedFile.toString().replace(/^file:\/\//, ""))
         }
     }
 }

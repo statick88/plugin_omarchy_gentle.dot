@@ -9,8 +9,9 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-PAYLOAD = ('manifest.json', 'BarWidget.qml', 'Panel.qml', 'toggle.sh', 'assets/rose-glyph.svg',
-           'LICENSE', 'LICENSES/gentle-dot-MIT.txt', 'THIRD_PARTY_NOTICES.md')
+PAYLOAD = ('manifest.json', 'BarWidget.qml', 'Panel.qml', 'BackendController.qml', 'toggle.sh',
+           'assets/rose-glyph.svg', 'scripts/backend_bridge.mjs', 'LICENSE',
+           'LICENSES/gentle-dot-MIT.txt', 'THIRD_PARTY_NOTICES.md')
 PLUGIN = 'statick.gentle-dot'
 NATIVE_ID = 'tray-icon tray app main'
 NATIVE_MENU = [
@@ -140,8 +141,8 @@ class InstallTests(unittest.TestCase):
             dest = self.source / name
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / name, dest)
-        (self.source / 'scripts').mkdir()
-        for script in ('install.py', 'native_install.py'):
+        (self.source / 'scripts').mkdir(exist_ok=True)
+        for script in ('install.py', 'native_install.py', 'backend_bridge.mjs'):
             if (ROOT / 'scripts' / script).exists():
                 shutil.copyfile(ROOT / 'scripts' / script, self.source / 'scripts' / script)
         self.config = self.home / '.config/omarchy/shell.json'
