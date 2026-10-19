@@ -141,8 +141,9 @@ class InstallTests(unittest.TestCase):
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(ROOT / name, dest)
         (self.source / 'scripts').mkdir()
-        if (ROOT / 'scripts/install.py').exists():
-            shutil.copyfile(ROOT / 'scripts/install.py', self.source / 'scripts/install.py')
+        for script in ('install.py', 'native_install.py'):
+            if (ROOT / 'scripts' / script).exists():
+                shutil.copyfile(ROOT / 'scripts' / script, self.source / 'scripts' / script)
         self.config = self.home / '.config/omarchy/shell.json'
         self.config.parent.mkdir(parents=True)
         self.original = {'version': 1, 'bar': {'layout': {
@@ -485,10 +486,11 @@ class InstallTests(unittest.TestCase):
     def test_help_has_no_desktop_effects(self):
         before = self.snapshot()
         result = self.run_cli('--help')
-        self.result(result, 0, '''usage: install.py [-h] [--app-path EXECUTABLE]
+        self.result(result, 0, '''usage: install.py [-h] [--app-path EXECUTABLE] [--install-native]
+                  [--no-launch]
 
-Install only the Omarchy widget and hide the already-running native Gentle Dot
-controls; never install, start or log into the app.
+Install the Omarchy widget; --install-native explicitly builds the pinned
+official native source first.
 
 options:
   -h, --help            show this help message and exit
@@ -496,9 +498,13 @@ options:
                         existing native launcher (one literal path); otherwise
                         preserve widget appPath, then try ~/.local/bin/gentle-
                         dot and PATH
+  --install-native      guided build of the pinned official Gentle Dot source
+                        before widget integration
+  --no-launch           with --install-native, build only; do not start the
+                        native app or modify Omarchy configuration
 
-If shell synchronization fails, restore shell availability and rerun. Pending
-synchronization is retried before hiding the native rose.
+Native source setup is Omarchy-only, retains its source/runtime directory, and
+asks before installing missing Arch build packages.
 ''')
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(self.events(), [])

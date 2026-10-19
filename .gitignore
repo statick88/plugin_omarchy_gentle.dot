@@ -1,6 +1,7 @@
 # Version only the explicit plugin source boundary.
 /*
 !/.gitignore
+/.test-tmp/
 !/README.md
 !/LICENSE
 !/manifest.json
@@ -16,7 +17,9 @@
 !/scripts/
 /scripts/*
 !/scripts/install.py
+!/scripts/native_install.py
 !/tests/
 /tests/*
 !/tests/test_install.py
+!/tests/test_native_install.py
 !/tests/test_toggle.py

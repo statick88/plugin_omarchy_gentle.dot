@@ -6,33 +6,60 @@ The plugin does not implement another assistant or read account credentials.
 
 ## Install
 
-1. Install a working [Gentle Dot desktop app](https://github.com/Gentleman-Programming/gentle-dot/blob/main/docs/install.md).
-   Native installation/build is an external prerequisite, not part of this plugin.
-2. Clone the plugin:
+1. Clone the plugin:
 
    ```sh
    git clone https://github.com/statick88/plugin_omarchy_gentle.dot.git
    cd plugin_omarchy_gentle.dot
    ```
 
-3. With Gentle Dot **already running** and its tray menu available, explicitly install:
+2. Either build the official native app through the guided Omarchy-only path, or use an existing launcher:
 
    ```sh
+   # Shows missing Arch build dependencies and asks before installing them.
+   python3 scripts/install.py --install-native
+   # Build the exact source revision without starting it or changing shell.json.
+   python3 scripts/install.py --install-native --no-launch
+   # Existing native launcher:
    python3 scripts/install.py --app-path /absolute/path/to/gentle-dot
-   # Or preserve an existing appPath / use local-bin then PATH lookup:
-   python3 scripts/install.py
    ```
 
-   Requires Python 3 (stdlib only), `busctl`, `omarchy`, a running `omarchy-shell`,
+   Native setup retains the official `https://github.com/Gentleman-Programming/gentle-dot.git`
+   checkout at revision `8cb20ee888c88be2b359258a65499c20b59e2a86` under
+   `~/.local/share/gentle-dot-omarchy/<revision>/source`; it does not copy a binary
+   then discard runtime resources. It verifies origin, the full commit and a clean
+   source tree, then uses `pnpm install --frozen-lockfile`, `pnpm build`, and
+   `pnpm --filter @gentle-dot/desktop tauri build --no-bundle`.
+   It lists only missing Arch libraries/build tools before asking permission for
+   `sudo pacman -S --needed`. Node >=24 and Rust >=1.90 are required; pnpm 11.5.0 is
+   installed under the private setup directory, not globally. Approved Arch packages
+   may be added, but setup never performs a full/partial system upgrade, executes
+   `curl | sh`, runs rustup or edits shell profiles. `--no-launch` builds only;
+   it does not start the app or integrate the widget.
+
+   A native setup lock rejects concurrent runs. A private successful-build record
+   verifies the executable digest before reuse; retries retain source/resources and
+   do not rebuild a completed artifact. Do not delete this source directory while
+   its launcher is configured. Lock and partial-state errors require inspection,
+   not automatic deletion or a force reinstall.
+
+   Full setup first preserves a valid existing configured/automatic launcher; it
+   does not replace that installation or its account locations. It starts the chosen
+   app only when explicitly requested and not already publicly ready, waits for its
+   tray identity, then integrates the plugin. Desktop HOME/XDG/browser locations are
+   preserved; only allowlisted desktop variables reach the launched app, not inherited
+   token/auth/agent overrides. Build caches/configuration use the managed setup area. Requires Python 3
+   (stdlib only), `busctl`, `omarchy`, a running `omarchy-shell`,
    and a valid version-1 `~/.config/omarchy/shell.json` with all three layout sections.
    Use `python3 scripts/install.py --help` for options. Marketplace installation
    does not run this setup command or arbitrary hooks.
-4. Left-click the bar rose to toggle the native panel. A failed launcher produces
+3. Left-click the bar rose to toggle the native panel. A failed launcher produces
    an actionable tooltip; repeated clicks are ignored while launch is running.
 
-The explicit installer stages and validates only seven runtime files: manifest,
-QML, toggle script, rose SVG and three license/notice files. It does not download,
-build, install, start, stop or log into the native application, and requires no sudo.
+The widget installer stages and validates only seven plugin runtime files: manifest,
+QML, toggle script, rose SVG and three license/notice files. Native source, build output,
+and caches remain private user-managed state, not plugin payload. The default and
+`--app-path` paths do not download, build, install, start, stop or log into the native app.
 
 ## One visible rose, safely
 
@@ -59,7 +86,7 @@ A repeat after successful installation makes no writes, backups, reloads or clic
 
 | Exit | Meaning |
 | --- | --- |
-| `0` | Installed or already configured |
+| `0` | Installed/already configured, or native build-only completed with `--no-launch` |
 | `1` | Preflight rejection; inspect the reported prerequisite |
 | `2` | Partial installation/external failure; inspect error and backup, then retry/reconcile |
 
@@ -111,8 +138,8 @@ security audit: community plugins run unsandboxed and require source inspection.
 | --- | --- |
 | `manifest.json`, `BarWidget.qml`, `toggle.sh` | Plugin identity, bar widget and literal native toggle |
 | `assets/rose-glyph.svg` | Official monochrome rose, tinted by the bar theme |
-| `scripts/install.py` | Explicit plugin-only single-rose installer |
-| `tests/test_install.py`, `tests/test_toggle.py` | Plugin CLI regression tests |
+| `scripts/install.py`, `scripts/native_install.py` | Explicit plugin installer and guided pinned native-source setup |
+| `tests/test_install.py`, `tests/test_native_install.py`, `tests/test_toggle.py` | Plugin CLI regression tests |
 | `README.md`, `.gitignore` | Plugin documentation and local-state exclusions |
 | `LICENSE`, `LICENSES/gentle-dot-MIT.txt`, `THIRD_PARTY_NOTICES.md` | MIT license and preserved upstream attribution |
 
