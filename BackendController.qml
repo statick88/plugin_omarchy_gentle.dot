@@ -19,6 +19,9 @@ Item {
     property bool consent: false
     property bool awaitingNode: false
     property bool awaitingBridge: false
+    property bool writeWanted: false
+    property bool writeGranted: false
+    property bool pendingStop: false
 
     readonly property string trustedPath: Quickshell.env("PATH") || "/usr/bin:/bin"
     readonly property string helperPath: decodeURIComponent(Qt.resolvedUrl("scripts/backend_bridge.mjs").toString().replace(/^file:\/\//, ""))
@@ -33,6 +36,7 @@ Item {
         statusText = message
         awaitingNode = false
         awaitingBridge = false
+        writeWanted = false; writeGranted = false; pendingStop = false; streaming = false; canSend = false; canStop = false
     }
     function connect(url, filePath, approved) {
         if (nodeCheck.running || bridge.running) return
@@ -59,8 +63,27 @@ Item {
         statusText = "Disconnected. No local pairing details are retained."
         modelLabel = "Gentle Dot"
     }
-    function send(text) {}
-    function abort() {}
+    function setWrite(enabled) {
+        writeWanted = enabled === true; writeGranted = false; pendingStop = false
+        gateWrite()
+        if (bridge.running && connectionState === "connected") {
+            var payload = { command: "write_access", enabled: writeWanted }
+            if (writeWanted) payload.consent = true
+            bridge.write(JSON.stringify(payload) + "\n")
+        }
+    }
+    function send(text) {
+        var value = String(text || "")
+        if (!canSend || !value.trim() || JSON.stringify({ command: "send", text: value, consent: true }).length > 16384) return false
+        bridge.write(JSON.stringify({ command: "send", text: value, consent: true }) + "\n"); return true
+    }
+    function abort(confirmed) {
+        if (confirmed !== true || !pendingStop || !canStop) return false
+        pendingStop = false; bridge.write(JSON.stringify({ command: "abort", confirmed: true }) + "\n"); return true
+    }
+    function requestStop() { if (canStop) pendingStop = true }
+    function cancelStop() { pendingStop = false }
+    function gateWrite() { canSend = writeWanted && writeGranted && connectionState === "connected"; canStop = canSend }
     function startBridge() {
         if (!consent || !endpoint || !tokenFile) return
         awaitingBridge = true
@@ -74,11 +97,26 @@ Item {
             connectionState = value.state
             if (value.state === "connected") {
                 modelLabel = typeof value.modelLabel === "string" && value.modelLabel.length <= 256 ? value.modelLabel : "Gentle Dot"
-                statusText = "Connected for read-only history. Sending is not available yet."
-                bridge.write(JSON.stringify({ command: "history" }) + "\n")
+                statusText = "Connected for read-only history."
+                gateWrite(); bridge.write(JSON.stringify({ command: "history" }) + "\n")
             } else if (connectionState === "disconnected") {
                 statusText = "Disconnected."
             }
+        } else if (value.type === "write_access") {
+            writeGranted = value.enabled === true && writeWanted && connectionState === "connected"; gateWrite()
+        } else if (value.type === "stream") {
+            var id = typeof value.messageId === "string" ? value.messageId.slice(0, 256) : ""
+            if (id && (value.event === "user_message" || value.event === "message_delta" || value.event === "message_done")) {
+                var rows = messages.slice(); var index = rows.findIndex(function(row) { return row.id === id })
+                var prior = index >= 0 ? rows[index] : { id: id, role: value.event === "user_message" ? "user" : "assistant", text: "" }
+                var text = value.event === "message_delta" ? prior.text + String(value.delta || "") : String(value.text || "")
+                if (text.length <= 16384) { prior.text = text; if (index >= 0) rows[index] = prior; else if (rows.length < 100) rows.push(prior); messages = rows }
+                streaming = value.event === "message_delta"; if (value.event === "message_done") streaming = false
+            }
+        } else if (value.type === "agent_state") {
+            statusText = "Shared session: " + String(value.state || "idle")
+        } else if (value.type === "action_required" || value.type === "model_error") {
+            statusText = "Use the full Gentle Dot app for this action."
         } else if (value.type === "history" && Array.isArray(value.history)) {
             var normalized = []
             for (var i = 0; i < value.history.length && i < 100; i++) {
@@ -90,6 +128,7 @@ Item {
             statusText = normalized.length === 0 ? "No history in this shared session." : "Read-only shared-session history. Sending is not available yet."
         } else if (value.type === "error") {
             fail("Connection unavailable. Open Gentle Dot for the full app.")
+            gateWrite()
         }
     }
 

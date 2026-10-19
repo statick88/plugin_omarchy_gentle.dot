@@ -1,4 +1,5 @@
 """Synthetic protocol-v1 WebSocket fixture; never a Gentle Dot daemon."""
+
 import base64
 import hashlib
 import json
@@ -8,11 +9,21 @@ import time
 
 
 class FakeServer:
-    def __init__(self, token="synthetic-capability", ready=True, history="normal", delay=0, send_events=None, ready_events=None):
+    def __init__(
+        self,
+        token="synthetic-capability",
+        ready=True,
+        history="normal",
+        delay=0,
+        send_events=None,
+        ready_events=None,
+        write_access_events=None,
+    ):
         self.token, self.ready = token, ready
         self.history, self.delay = history, delay
         self.send_events = send_events or []
         self.ready_events = ready_events or []
+        self.write_access_events = write_access_events or []
         self.connections = self.messages = 0
         self.received = []
         self.sock = socket.socket()
@@ -35,10 +46,22 @@ class FakeServer:
             self.connections += 1
             with conn:
                 request = conn.recv(8192).decode("ascii")
-                headers = dict(line.split(": ", 1) for line in request.split("\r\n") if ": " in line)
-                key = headers["sec-websocket-key"]
-                accept = base64.b64encode(hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()).decode()
-                conn.sendall(f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n".encode())
+                headers = dict(
+                    line.split(": ", 1)
+                    for line in request.split("\r\n")
+                    if ": " in line
+                )
+                key = headers.get("sec-websocket-key")
+                if not key:
+                    return
+                accept = base64.b64encode(
+                    hashlib.sha1(
+                        (key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()
+                    ).digest()
+                ).decode()
+                conn.sendall(
+                    f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n".encode()
+                )
                 while True:
                     message = self._read(conn)
                     if message is None:
@@ -46,13 +69,23 @@ class FakeServer:
                     self.messages += 1
                     self.received.append(message)
                     if message.get("type") == "hello" and self.ready:
-                        self._send(conn, {"type": "ready", "agentState": "idle", "model": "safe " + self.token})
+                        self._send(
+                            conn,
+                            {
+                                "type": "ready",
+                                "agentState": "idle",
+                                "model": "safe " + self.token,
+                            },
+                        )
                         for event in self.ready_events:
                             self._send(conn, event)
                     elif message.get("type") == "get_history":
                         self._history(conn)
                     elif message.get("type") == "send":
                         for event in self.send_events:
+                            self._send(conn, event)
+                    elif message.get("command") == "write_access":
+                        for event in self.write_access_events:
                             self._send(conn, event)
         except OSError:
             pass
@@ -66,15 +99,37 @@ class FakeServer:
         if self.delay:
             time.sleep(self.delay)
         if self.history == "error":
-            self._send(conn, {"type": "error", "code": "test", "message": "leak " + self.token})
+            self._send(
+                conn, {"type": "error", "code": "test", "message": "leak " + self.token}
+            )
         elif self.history == "empty":
             self._send(conn, {"type": "history", "messages": []})
         else:
-            self._send(conn, {"type": "history", "messages": [
-                {"id": "u1", "role": "user", "text": "hello " + self.token, "activities": []},
-                {"id": "a1", "role": "assistant", "text": "world", "activities": []},
-                {"id": "tool", "role": "assistant", "content": [{"type": "image", "url": "ignored"}]},
-            ]})
+            self._send(
+                conn,
+                {
+                    "type": "history",
+                    "messages": [
+                        {
+                            "id": "u1",
+                            "role": "user",
+                            "text": "hello " + self.token,
+                            "activities": [],
+                        },
+                        {
+                            "id": "a1",
+                            "role": "assistant",
+                            "text": "world",
+                            "activities": [],
+                        },
+                        {
+                            "id": "tool",
+                            "role": "assistant",
+                            "content": [{"type": "image", "url": "ignored"}],
+                        },
+                    ],
+                },
+            )
 
     @staticmethod
     def _exact(conn, count):
@@ -102,5 +157,9 @@ class FakeServer:
     @staticmethod
     def _send(conn, value):
         data = json.dumps(value).encode()
-        header = bytes([129, len(data)]) if len(data) < 126 else bytes([129, 126]) + len(data).to_bytes(2, "big")
+        header = (
+            bytes([129, len(data)])
+            if len(data) < 126
+            else bytes([129, 126]) + len(data).to_bytes(2, "big")
+        )
         conn.sendall(header + data)

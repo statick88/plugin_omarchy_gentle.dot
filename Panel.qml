@@ -103,9 +103,20 @@ Ui.Panel {
                     visible: root.connectionState !== "connected"
                 }
 
+                Ui.Toggle {
+                    id: writeConsent
+                    anchors.top: pairing.visible ? pairing.bottom : rule.bottom
+                    width: parent.width; visible: root.connectionState === "connected" && root.chatController && typeof root.chatController.setWrite === "function"
+                    label: "Enable shared writing"
+                    description: "Sending while busy can redirect the current response. Stop affects all clients."
+                    checked: root.chatController && root.chatController.writeWanted === true
+                    foreground: Commons.Color.popups.text; accent: Commons.Color.accent
+                    onClicked: root.chatController.setWrite(!checked)
+                }
+
                 ListView {
                     id: transcript
-                    anchors.top: pairing.visible ? pairing.bottom : rule.bottom; anchors.bottom: status.top
+                    anchors.top: writeConsent.visible ? writeConsent.bottom : (pairing.visible ? pairing.bottom : rule.bottom); anchors.bottom: status.top
                     width: parent.width; clip: true; model: root.messages
                     spacing: Style.spacing.md; topMargin: Style.spacing.md; bottomMargin: Style.spacing.md
                     delegate: Item {
@@ -128,7 +139,7 @@ Ui.Panel {
                 Text {
                     id: status
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: composerRow.top
-                    text: root.statusText; textFormat: Text.PlainText; wrapMode: Text.Wrap
+                    text: root.chatController && root.chatController.pendingStop ? "Stop affects every client. Confirm?" : root.statusText; textFormat: Text.PlainText; wrapMode: Text.Wrap
                     color: Commons.Color.muted; font.family: root.themeFontFamily; font.pixelSize: Style.font.caption
                 }
                 Item {
@@ -152,7 +163,7 @@ Ui.Panel {
                             border.color: Style.controlBorder(composer.activeFocus, composer.hovered, Commons.Color.popups.text, Commons.Color.accent)
                             radius: Style.cornerRadius
                         }
-                        Keys.onReturnPressed: function(event) { root.sendMessage(text); event.accepted = true }
+                        Keys.onReturnPressed: function(event) { if (root.sendMessage(text) !== false) text = ""; event.accepted = true }
                     }
                     Text {
                         id: send
@@ -160,7 +171,12 @@ Ui.Panel {
                         text: root.streaming ? "■" : "➤"; color: Commons.Color.accent; font.family: root.themeFontFamily; font.pixelSize: Style.font.title
                         enabled: root.streaming ? root.canStop : root.canSend && composer.text.trim().length > 0
                         opacity: enabled ? 1 : .4
-                        MouseArea { anchors.fill: parent; enabled: send.enabled; onClicked: root.streaming ? root.stopMessage() : root.sendMessage(composer.text) }
+                        MouseArea { anchors.fill: parent; enabled: send.enabled; onClicked: { if (root.streaming) root.chatController.requestStop(); else if (root.sendMessage(composer.text) !== false) composer.text = "" } }
+                    }
+                    Row {
+                        anchors.right: parent.right; anchors.bottom: parent.top; visible: root.chatController && root.chatController.pendingStop
+                        Ui.Button { text: "Confirm Stop"; foreground: Commons.Color.popups.text; accent: Commons.Color.accent; bordered: true; onClicked: root.chatController.abort(true) }
+                        Ui.Button { text: "Cancel"; foreground: Commons.Color.popups.text; accent: Commons.Color.accent; bordered: true; onClicked: root.chatController.cancelStop() }
                     }
                 }
             }
