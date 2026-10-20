@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Explicit, plugin-only installer. Never provisions or launches the native app."""
+"""Omarchy widget installer with an explicit, guided native-source setup mode."""
 import argparse
 import copy
 import json
@@ -11,9 +11,12 @@ import sys
 import tempfile
 import time
 
+from native_install import NativeRejected, setup as setup_native
+
 PLUGIN = 'statick.gentle-dot'
-PAYLOAD = ('manifest.json', 'BarWidget.qml', 'toggle.sh', 'assets/rose-glyph.svg',
-           'LICENSE', 'LICENSES/gentle-dot-MIT.txt', 'THIRD_PARTY_NOTICES.md')
+PAYLOAD = ('manifest.json', 'BarWidget.qml', 'Panel.qml', 'BackendController.qml', 'toggle.sh',
+           'assets/rose-glyph.svg', 'scripts/backend_bridge.mjs', 'LICENSE',
+           'LICENSES/gentle-dot-MIT.txt', 'THIRD_PARTY_NOTICES.md')
 IDENTITY_ERROR = ('Cannot uniquely identify Gentle Dot without an ID collision; '
                   'start the installed app and inspect its tray menu.')
 CONFIG_ERROR = 'Invalid shell.json; restore a valid version-1 bar layout first.'
@@ -197,9 +200,9 @@ def unchanged(path, raw, stamp):
         raise Rejected('shell.json changed concurrently; inspect it and rerun without overwriting the other writer.')
 
 
-def install(explicit):
+def install(explicit, native_committed=False):
     backup = None
-    committed = False
+    committed = native_committed
     try:
         config_path = Path.home() / '.config/omarchy/shell.json'
         raw, stamp, original = read_config(config_path)
@@ -235,7 +238,7 @@ def install(explicit):
                 entry.setdefault('hidden', []).append(native_id)
         changed = config != original
         rescan, reload_config = bool(missing) or recovery[0], changed or recovery[1]
-        # The repository may contain vendor symlinks: validate only the seven files.
+        # The repository may contain vendor symlinks: validate only the ten runtime files.
         with tempfile.TemporaryDirectory(prefix='gentle-dot-payload-') as temp:
             stage = Path(temp) / PLUGIN
             for name, content in data.items():
@@ -333,10 +336,46 @@ def install(explicit):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Install only the Omarchy widget and hide the already-running native Gentle Dot controls; never install, start or log into the app.', epilog='If shell synchronization fails, restore shell availability and rerun. Pending synchronization is retried before hiding the native rose.')
+    parser = argparse.ArgumentParser(description='Install the Omarchy widget; --install-native explicitly builds the pinned official native source first.', epilog='Native source setup is Omarchy-only, retains its source/runtime directory, and asks before installing missing Arch build packages.')
     parser.add_argument('--app-path', metavar='EXECUTABLE', help='existing native launcher (one literal path); otherwise preserve widget appPath, then try ~/.local/bin/gentle-dot and PATH')
+    parser.add_argument('--install-native', action='store_true', help='guided build of the pinned official Gentle Dot source before widget integration')
+    parser.add_argument('--no-launch', action='store_true', help='with --install-native, build only; do not start the native app or modify Omarchy configuration')
     args = parser.parse_args()
-    return install(args.app_path)
+    if args.no_launch and not args.install_native:
+        parser.error('--no-launch requires --install-native')
+    if not args.install_native:
+        return install(args.app_path)
+    if args.app_path is not None:
+        parser.error('--app-path cannot be combined with --install-native')
+    try:
+        existing = None
+        if not args.no_launch:
+            config_path = Path.home() / '.config/omarchy/shell.json'
+            _, _, config = read_config(config_path)
+            widgets = [entry for section in ('left', 'center', 'right')
+                       for entry in config['bar']['layout'][section] if entry['id'] == PLUGIN]
+            if len(widgets) > 1:
+                raise Rejected(CONFIG_ERROR)
+            widget = widgets[0] if widgets else {}
+            try:
+                existing = launcher(None, widget)
+            except Rejected:
+                if widget.get('appPath') or not isinstance(widget.get('appPath', ''), str):
+                    raise
+            # Reject an unsafe/edited widget destination before provisioning native code.
+            payload(Path(__file__).absolute().parent.parent, config_path.parent / 'plugins' / PLUGIN)
+        app_path, native_changed = setup_native(no_launch=args.no_launch, ready=native, existing=existing)
+    except Rejected as error:
+        print(f'Preflight rejected: {error}', file=sys.stderr)
+        return 1
+    except NativeRejected as error:
+        prefix = 'Partial installation' if error.args[1] else 'Preflight rejected'
+        print(f'{prefix}: {error.args[0]}', file=sys.stderr)
+        return 2 if error.args[1] else 1
+    if args.no_launch:
+        return 0
+    # Keep a configured existing path literal; a new managed build supplies its path.
+    return install(None if existing else app_path, native_committed=native_changed)
 
 
 if __name__ == '__main__':

@@ -10,8 +10,32 @@ Ui.BarWidget {
     moduleName: "statick.gentle-dot"
 
     property string launchError: ""
+    // External injection stays available; the default creates no process until Connect.
+    property var chatController: backend
+
+    BackendController { id: backend }
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
+
+    function openNativeApp() {
+        if (!toggleProcess.running) {
+            launchError = ""
+            toggleProcess.running = true
+        }
+    }
+
+    Panel {
+        id: popup
+        parent: root
+        x: Math.min(Math.max(0, button.x + button.width - width), Math.max(0, root.width - width))
+        y: button.y + button.height + 8
+        anchorItem: button
+        chatController: root.chatController
+        onRequestNativeOpen: {
+            popup.close()
+            root.openNativeApp()
+        }
+    }
 
     Process {
         id: toggleProcess
@@ -48,12 +72,10 @@ Ui.BarWidget {
                 }
             }
         }
-        tooltipText: root.launchError || "Gentle Dot for Omarchy — toggle chat and settings"
-        onPressed: function(button) {
-            if (button === Qt.LeftButton && !toggleProcess.running) {
-                root.launchError = ""
-                toggleProcess.running = true
-            }
+        tooltipText: root.launchError || "Gentle Dot — open chat popup"
+        onPressed: function(mouseButton) {
+            if (mouseButton === Qt.LeftButton)
+                popup.opened ? popup.close() : popup.open()
         }
     }
 }

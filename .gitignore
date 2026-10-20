@@ -1,10 +1,13 @@
 # Version only the explicit plugin source boundary.
 /*
 !/.gitignore
+/.test-tmp/
 !/README.md
 !/LICENSE
 !/manifest.json
 !/BarWidget.qml
+!/Panel.qml
+!/BackendController.qml
 !/toggle.sh
 !/THIRD_PARTY_NOTICES.md
 !/assets/
@@ -16,7 +19,21 @@
 !/scripts/
 /scripts/*
 !/scripts/install.py
+!/scripts/native_install.py
+!/scripts/backend_bridge.mjs
 !/tests/
 /tests/*
 !/tests/test_install.py
+!/tests/test_popup_ui.py
+!/tests/test_pairing_ui.py
+!/tests/popup_preview/
+/tests/popup_preview/*
+!/tests/popup_preview/popup_preview.py
+!/tests/popup_preview/run_preview.py
+!/tests/popup_preview/pairing.qml
+!/tests/popup_preview/shell.qml
+!/tests/test_native_install.py
 !/tests/test_toggle.py
+!/tests/test_backend_bridge.py
+!/tests/test_backend_chat.py
+!/tests/backend_fixture.py
