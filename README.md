@@ -215,6 +215,14 @@ This is one literal argv path, not a shell expression. Spaces are supported;
 Missing/broken configured paths fail with exit 127; app failures are propagated
 without fallback or retry. Direct use: `/bin/sh toggle.sh /absolute/native/launcher`.
 
+A launcher that is not an executable file is rejected before anything is
+written. An explicit `--app-path` is reported by the given path, and an empty
+value is reported as empty. A configured `appPath` is reported with the same
+recovery the bar widget shows, "Set appPath to the native launcher or clear it
+for automatic lookup", plus a reminder to install the official app first.
+When no launcher is found at all, the installer says to install the app first
+or to pass `--app-path`.
+
 A managed native setup publishes `~/.local/bin/gentle-dot` itself, pointing at
 the managed build under `~/.local/share/gentle-dot-omarchy/`. That link lives
 outside every temporary directory, so it keeps working after a reboot. It is
