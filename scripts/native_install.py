@@ -39,6 +39,50 @@ def marker_path():
     return source_root().parent / 'native-build.json'
 
 
+def launcher_path():
+    """Where the plugin's automatic lookup looks for the native launcher."""
+    return Path.home() / '.local/bin/gentle-dot'
+
+
+def safe_launcher_path(launcher):
+    for parent in reversed(launcher.parents):
+        if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
+            raise NativeRejected('Unsafe native launcher path; inspect it before retrying.', False)
+
+
+def publish_launcher(executable, partial=False):
+    """Expose the managed build at the path the plugin looks up.
+
+    A working launcher that points somewhere else belongs to the user and is kept.
+    A broken link is replaced, so a launcher left over from a deleted temporary
+    build stops shadowing the managed one.
+    """
+    launcher = launcher_path()
+    safe_launcher_path(launcher)
+    if launcher.is_symlink():
+        try:
+            if launcher.resolve() == executable.resolve():
+                return str(launcher), 'published'
+        except OSError:
+            pass
+        if launcher.exists():
+            return str(launcher), 'kept'
+    elif launcher.exists():
+        if launcher.is_file() and os.access(launcher, os.X_OK):
+            return str(launcher), 'kept'
+        raise NativeRejected('Unsafe native launcher path; inspect it before retrying.', partial)
+    launcher.parent.mkdir(parents=True, exist_ok=True)
+    temporary = launcher.parent / ('.gentle-dot-launcher-' + os.urandom(8).hex())
+    try:
+        os.symlink(str(executable), str(temporary))
+        os.replace(str(temporary), str(launcher))
+    except OSError as error:
+        if temporary.is_symlink():
+            temporary.unlink()
+        raise NativeRejected('Native launcher publication failed; inspect it before retrying.', partial) from error
+    return str(launcher), 'published'
+
+
 def safe_path(path, directory=True):
     for parent in reversed(path.parents):
         if parent.is_symlink() or (parent.exists() and not parent.is_dir()):
@@ -282,9 +326,11 @@ def setup(no_launch=False, ready=None, existing=None):
             if not executable.is_file() or not os.access(executable, os.X_OK):
                 raise NativeRejected('Native desktop build did not produce its launcher.', True)
             write_marker(source, executable, pnpm)
+        launcher, state = publish_launcher(executable, partial)
         if not no_launch:
             partial = start_if_needed(executable, ready) or partial
         print(f'Native build ready: {executable}')
+        print(f'Native launcher {state}: {launcher}')
         return str(executable), partial
     except OSError as error:
         raise NativeRejected('Native filesystem operation failed; inspect retained files before retrying.', True) from error

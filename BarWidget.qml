@@ -13,6 +13,11 @@ Ui.BarWidget {
     // External injection stays available; the default creates no process until Connect.
     property var chatController: backend
 
+    // The shell routes summon/hide/toggle through the bar widget's own panel lifecycle.
+    readonly property bool opened: popup.opened
+    function open() { popup.open() }
+    function close() { popup.close() }
+
     BackendController { id: backend }
     implicitWidth: button.implicitWidth
     implicitHeight: button.implicitHeight
@@ -22,6 +27,14 @@ Ui.BarWidget {
             launchError = ""
             toggleProcess.running = true
         }
+    }
+
+    // Left click toggles the official native panel; right click toggles the owned popup.
+    function handlePress(mouseButton) {
+        if (mouseButton === Qt.LeftButton)
+            root.openNativeApp()
+        else if (mouseButton === Qt.RightButton)
+            popup.opened ? popup.close() : popup.open()
     }
 
     Panel {
@@ -72,10 +85,7 @@ Ui.BarWidget {
                 }
             }
         }
-        tooltipText: root.launchError || "Gentle Dot — open chat popup"
-        onPressed: function(mouseButton) {
-            if (mouseButton === Qt.LeftButton)
-                popup.opened ? popup.close() : popup.open()
-        }
+        tooltipText: root.launchError || "Gentle Dot — open the native panel (right click for the chat popup)"
+        onPressed: function(mouseButton) { root.handlePress(mouseButton) }
     }
 }

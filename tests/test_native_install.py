@@ -94,6 +94,7 @@ class NativeInstallTests(unittest.TestCase):
         self.account = self.home / 'account.sentinel'; self.account.write_text('unchanged account')
         self.source = self.home / '.local/share/gentle-dot-omarchy' / REVISION / 'source'
         self.launcher = self.source / 'apps/desktop/src-tauri/target/release/gentle-dot'
+        self.published = self.home / '.local/bin/gentle-dot'
         self.plan = 'Missing build dependencies: ' + ' '.join(MISSING) + '\n' + PROMPT
 
     def cli(self, *args, answer=''):
@@ -117,7 +118,8 @@ class NativeInstallTests(unittest.TestCase):
 
     def build(self):
         result = self.cli('--install-native', '--no-launch', answer='y\n')
-        self.assert_result(result, 0, self.plan + f'Native build ready: {self.launcher}\n')
+        self.assert_result(result, 0, self.plan + f'Native build ready: {self.launcher}\n'
+                         + f'Native launcher published: {self.published}\n')
 
     def test_decline_and_eof_leave_home_and_package_counters_unchanged(self):
         for answer in ('n\n', ''):
@@ -141,7 +143,9 @@ class NativeInstallTests(unittest.TestCase):
         self.assertIn(['pnpm',['--filter','@gentle-dot/desktop','tauri','build','--no-bundle']], self.events())
         self.assertIn(['sudo',['pacman','-S','--needed',*MISSING]], self.events())
         self.assertFalse((self.root / 'native-ready').exists())
-        self.assert_result(self.cli('--install-native','--no-launch'),0,f'Native build ready: {self.launcher}\n')
+        self.assert_result(self.cli('--install-native','--no-launch'),0,
+                           f'Native build ready: {self.launcher}\n'
+                           f'Native launcher published: {self.published}\n')
         self.assertFalse(any(name=='sudo' or name=='pnpm' and args!=['--version'] or name=='npm'
                              for name,args in self.events()[before:]))
 
@@ -189,7 +193,8 @@ class NativeInstallTests(unittest.TestCase):
         result=self.cli('--install-native')
         backups=list(config.parent.glob('shell.json.bak.gentle-dot.*'))
         self.assertEqual(len(backups),1)
-        self.assert_result(result,0,f'Native build ready: {self.launcher}\nInstalled: one Gentle Dot rose configured.\nBackup: {backups[0]}\n')
+        self.assert_result(result,0,f'Native build ready: {self.published}\n'
+                         f'Installed: one Gentle Dot rose configured.\nBackup: {backups[0]}\n')
         env=json.loads((self.root/'native-env').read_text())
         for key in ('HOME','BROWSER','XDG_CACHE_HOME','XDG_STATE_HOME'): self.assertEqual(env[key],self.env[key])
         for key in ('GENTLE_DOT_DATA_DIR','OPENAI_API_KEY','NODE_OPTIONS'): self.assertNotIn(key,env)
@@ -222,7 +227,43 @@ class NativeInstallTests(unittest.TestCase):
         finally:
             (self.root/'release-build').touch()
             out,err=first.communicate(timeout=10)
-        self.assertEqual((first.returncode,out,err),(0,f'Native build ready: {self.launcher}\n',''))
+        self.assertEqual((first.returncode,out,err),
+                         (0,f'Native build ready: {self.launcher}\n'
+                          f'Native launcher published: {self.published}\n',''))
+
+    def test_managed_setup_publishes_a_stable_launcher(self):
+        self.build()
+        self.assertTrue(self.published.is_symlink())
+        self.assertEqual(self.published.resolve(), self.launcher.resolve())
+        self.assertTrue(os.access(self.published, os.X_OK))
+        # The published link points at the managed private root, never a temporary tree.
+        self.assertTrue(str(self.published.resolve()).startswith(str(self.source)))
+
+    def test_broken_launcher_link_is_replaced_by_the_managed_build(self):
+        self.published.parent.mkdir(parents=True)
+        self.published.symlink_to(self.root / 'deleted-build')
+        self.build()
+        self.assertEqual(self.published.resolve(), self.launcher.resolve())
+
+    def test_working_foreign_launcher_is_preserved(self):
+        self.published.parent.mkdir(parents=True)
+        self.published.write_text('#!/bin/sh\nexit 0\n')
+        self.published.chmod(0o755)
+        result = self.cli('--install-native', '--no-launch', answer='y\n')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn(f'Native launcher kept: {self.published}', result.stdout)
+        self.assertFalse(self.published.is_symlink())
+        self.assertEqual(self.published.read_text(), '#!/bin/sh\nexit 0\n')
+
+    def test_symlinked_launcher_directory_is_rejected_without_writing_outside(self):
+        (self.home / '.local/share').mkdir(parents=True)
+        outside = self.root / 'outside'
+        outside.mkdir()
+        (self.home / '.local/bin').symlink_to(outside)
+        result = self.cli('--install-native', '--no-launch', answer='y\n')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Unsafe native launcher path', result.stderr)
+        self.assertEqual(list(outside.iterdir()), [])
 
 
 if __name__ == '__main__':

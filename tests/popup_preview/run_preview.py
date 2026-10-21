@@ -33,6 +33,12 @@ def main():
         action="store_true",
         help="make the private synthetic node bridge exit after connected",
     )
+    parser.add_argument(
+        "--widget-click",
+        nargs=2,
+        metavar=("LAUNCHER", "MARKER"),
+        help="run the synthetic bar-widget click preview against a fake native launcher",
+    )
     args = parser.parse_args()
     quickshell = shutil.which("quickshell")
     if quickshell is None:
@@ -70,9 +76,13 @@ def main():
             / "tests"
             / "popup_preview"
             / (
-                "write_controls.qml"
-                if args.write_controls
-                else ("pairing.qml" if args.pairing else "shell.qml")
+                "widget_click.qml"
+                if args.widget_click
+                else (
+                    "write_controls.qml"
+                    if args.write_controls
+                    else ("pairing.qml" if args.pairing else "shell.qml")
+                )
             )
         )
         (config / "shell.qml").write_bytes(shell_source.read_bytes())
@@ -151,6 +161,12 @@ def main():
                     "GENTLE_PAIR_TOKEN": pair_args[1],
                 }
             )
+        if args.widget_click:
+            # The widget launches the native app through a shell script, so the
+            # harness needs a minimal PATH; the fake launcher is an absolute path.
+            env["PATH"] = "/usr/bin:/bin"
+            env["GENTLE_FAKE_LAUNCHER"] = args.widget_click[0]
+            env["GENTLE_LAUNCH_MARKER"] = args.widget_click[1]
         if args.bridge_exit:
             bin_dir = runtime / "bin"
             bin_dir.mkdir()
@@ -173,9 +189,13 @@ def main():
             private_runtime.stat().st_mode & 0o777
         ) == 0o700 and log_notice in result.stdout
     marker_name = (
-        "T18_RESULT"
-        if args.write_controls
-        else ("T17_RESULT" if args.pairing else "T11_RESULT")
+        "T22_RESULT"
+        if args.widget_click
+        else (
+            "T18_RESULT"
+            if args.write_controls
+            else ("T17_RESULT" if args.pairing else "T11_RESULT")
+        )
     )
     marker = next(
         (line for line in result.stdout.splitlines() if marker_name in line), ""
