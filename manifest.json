@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "id": "statick.gentle-dot",
   "name": "Gentle Dot for Omarchy",
-  "version": "0.1.0",
-  "description": "Independent Gentle Dot for Omarchy integration to toggle the native chat and settings panel.",
+  "version": "0.2.0",
+  "description": "Left click toggles the official Gentle Dot chat and settings panel; right click opens the owned Omarchy chat popup.",
   "author": "statick",
   "kinds": [
     "bar-widget"

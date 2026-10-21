@@ -26,12 +26,15 @@
 !/tests/test_install.py
 !/tests/test_popup_ui.py
 !/tests/test_pairing_ui.py
+!/tests/test_widget_click.py
 !/tests/popup_preview/
 /tests/popup_preview/*
 !/tests/popup_preview/popup_preview.py
 !/tests/popup_preview/run_preview.py
 !/tests/popup_preview/pairing.qml
 !/tests/popup_preview/shell.qml
+!/tests/popup_preview/widget_click.qml
+!/tests/popup_preview/write_controls.qml
 !/tests/test_native_install.py
 !/tests/test_toggle.py
 !/tests/test_backend_bridge.py

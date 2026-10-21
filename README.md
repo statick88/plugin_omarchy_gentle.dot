@@ -1,8 +1,9 @@
 # Gentle Dot for Omarchy
 
-An independent Omarchy 4 / Quickshell bar widget with an owned, compact Gentle
-Dot chat popup. Its header can still open or hide the **official Gentle Dot desktop
-panel** for the existing full app. Popup pairing and history are opt-in and read-only by default.
+An independent Omarchy 4 / Quickshell bar widget. A left click on the bar
+rose toggles the **official Gentle Dot desktop panel**; a right click opens the
+owned, compact Gentle Dot chat popup. The popup's header can also open or hide
+the official panel. Popup pairing and history are opt-in and read-only by default.
 
 ## Install
 
@@ -53,10 +54,11 @@ panel** for the existing full app. Popup pairing and history are opt-in and read
    and a valid version-1 `~/.config/omarchy/shell.json` with all three layout sections.
    Use `python3 scripts/install.py --help` for options. Marketplace installation
    does not run this setup command or arbitrary hooks.
-3. Left-click the bar rose to toggle the chat popup. Press Escape or the back button
-   to dismiss it; focus starts in the composer. The header's **Open Gentle Dot**
-   control preserves the native-panel toggle, and a failed native launch produces an
-   actionable tooltip.
+3. Left-click the bar rose to open or hide the official Gentle Dot panel. A
+   right click toggles the owned chat popup instead. Press Escape or the back
+   button to dismiss the popup; focus starts in the composer. The popup's
+   header **Open Gentle Dot** control also opens the official panel, and a
+   failed native launch produces an actionable tooltip.
 
 ## Popup pairing and read-only history
 
@@ -241,10 +243,10 @@ security audit: community plugins run unsandboxed and require source inspection.
 
 | Files | Purpose |
 | --- | --- |
-| `manifest.json`, `BarWidget.qml`, `Panel.qml`, `toggle.sh` | Plugin identity, popup-enabled bar widget, popup presentation and literal native toggle |
+| `manifest.json`, `BarWidget.qml`, `Panel.qml`, `toggle.sh` | Plugin identity, bar widget, popup presentation and literal native toggle |
 | `assets/rose-glyph.svg` | Official monochrome rose, tinted by the bar theme |
 | `scripts/install.py`, `scripts/native_install.py` | Explicit plugin installer and guided pinned native-source setup |
-| `tests/test_install.py`, `tests/test_popup_ui.py`, `tests/popup_preview/`, `tests/test_native_install.py`, `tests/test_toggle.py` | Plugin CLI and isolated synthetic Quickshell popup regression tests |
+| `tests/test_install.py`, `tests/test_popup_ui.py`, `tests/popup_preview/`, `tests/test_native_install.py`, `tests/test_toggle.py`, `tests/test_widget_click.py` | Plugin CLI, isolated synthetic Quickshell popup and bar-widget click regression tests |
 | `README.md`, `.gitignore` | Plugin documentation and local-state exclusions |
 | `LICENSE`, `LICENSES/gentle-dot-MIT.txt`, `THIRD_PARTY_NOTICES.md` | MIT license and preserved upstream attribution |
 
