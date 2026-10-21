@@ -459,8 +459,27 @@ class InstallTests(unittest.TestCase):
         self.config.unlink()
         self.config.write_text(json.dumps(self.original))
         self.app.chmod(0o644)
-        self.reject('Native launcher is not executable; install the app first or pass --app-path /absolute/launcher.')
+        self.reject(f'Native launcher is not executable: {self.app}. '
+                    'Pass --app-path with an executable file.')
         self.assertEqual(json.loads(external.read_text()), self.original)
+
+    def test_explicit_launcher_that_is_not_executable_is_named(self):
+        self.app.chmod(0o644)
+        self.reject(f'Native launcher is not executable: {self.app}. '
+                    'Pass --app-path with an executable file.')
+
+    def test_stale_configured_app_path_is_named_with_the_widget_recovery(self):
+        current = json.loads(json.dumps(self.original))
+        current['bar']['layout']['right'].append({'id': PLUGIN, 'appPath': str(self.app)})
+        self.config.write_text(json.dumps(current))
+        self.app.unlink()
+        before = self.snapshot()
+        events = self.events()
+        self.result(self.run_cli(), 1, '',
+                    'Preflight rejected: Configured Gentle Dot appPath is not an executable file: '
+                    f'{self.app}. Set appPath to the native launcher or clear it for automatic lookup.\n')
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.events(), events)
 
     def test_concurrent_config_writer_is_not_overwritten(self):
         other = json.dumps(dict(self.original, other_writer='preserve'))

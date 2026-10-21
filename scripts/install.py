@@ -158,13 +158,21 @@ def launcher(explicit, entry):
     configured = explicit if explicit is not None else entry.get('appPath', '')
     if not isinstance(configured, str):
         raise Rejected('Invalid widget appPath; select an existing executable with --app-path.')
-    if explicit is not None or configured:
+    if explicit is not None:
         candidate = Path(configured)
+        if not candidate.is_file() or not os.access(candidate, os.X_OK):
+            raise Rejected(f'Native launcher is not executable: {candidate}. '
+                           'Pass --app-path with an executable file.')
+    elif configured:
+        candidate = Path(configured)
+        if not candidate.is_file() or not os.access(candidate, os.X_OK):
+            raise Rejected(f'Configured Gentle Dot appPath is not an executable file: {candidate}. '
+                           'Set appPath to the native launcher or clear it for automatic lookup.')
     else:
         local = Path.home() / '.local/bin/gentle-dot'
         candidate = local if local.is_file() and os.access(local, os.X_OK) else Path(shutil.which('gentle-dot') or '')
-    if not candidate.is_file() or not os.access(candidate, os.X_OK):
-        raise Rejected('Native launcher is not executable; install the app first or pass --app-path /absolute/launcher.')
+        if not candidate.is_file() or not os.access(candidate, os.X_OK):
+            raise Rejected('Native launcher is not executable; install the app first or pass --app-path /absolute/launcher.')
     return str(candidate.absolute())
 
 
