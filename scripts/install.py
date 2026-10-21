@@ -154,24 +154,30 @@ def read_config(path):
         raise Rejected(CONFIG_ERROR) from None
 
 
+def is_executable(path):
+    return path.is_file() and os.access(path, os.X_OK)
+
+
 def launcher(explicit, entry):
     configured = explicit if explicit is not None else entry.get('appPath', '')
     if not isinstance(configured, str):
         raise Rejected('Invalid widget appPath; select an existing executable with --app-path.')
     if explicit is not None:
         candidate = Path(configured)
-        if not candidate.is_file() or not os.access(candidate, os.X_OK):
-            raise Rejected(f'Native launcher is not executable: {candidate}. '
+        if not is_executable(candidate):
+            detail = configured if configured else 'the --app-path value is empty'
+            raise Rejected(f'Native launcher is not executable: {detail}. '
                            'Pass --app-path with an executable file.')
     elif configured:
         candidate = Path(configured)
-        if not candidate.is_file() or not os.access(candidate, os.X_OK):
-            raise Rejected(f'Configured Gentle Dot appPath is not an executable file: {candidate}. '
-                           'Set appPath to the native launcher or clear it for automatic lookup.')
+        if not is_executable(candidate):
+            raise Rejected(f'Configured Gentle Dot appPath is not an executable file: {configured}. '
+                           'Set appPath to the native launcher or clear it for automatic lookup. '
+                           'Install the official app first if it is not installed.')
     else:
         local = Path.home() / '.local/bin/gentle-dot'
-        candidate = local if local.is_file() and os.access(local, os.X_OK) else Path(shutil.which('gentle-dot') or '')
-        if not candidate.is_file() or not os.access(candidate, os.X_OK):
+        candidate = local if is_executable(local) else Path(shutil.which('gentle-dot') or '')
+        if not is_executable(candidate):
             raise Rejected('Native launcher is not executable; install the app first or pass --app-path /absolute/launcher.')
     return str(candidate.absolute())
 
