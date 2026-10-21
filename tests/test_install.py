@@ -127,6 +127,16 @@ else:
 '''
 
 
+# One source for the user-facing launcher rejections the installer and the
+# bar widget must agree on.
+WIDGET_RECOVERY = ('Configured Gentle Dot appPath is not an executable file: %s. '
+                   'Set appPath to the native launcher or clear it for automatic lookup.')
+CONFIGURED_RECOVERY = WIDGET_RECOVERY + ' Install the official app first if it is not installed.'
+EXPLICIT_RECOVERY = 'Native launcher is not executable: %s. Pass --app-path with an executable file.'
+MISSING_RECOVERY = ('Native launcher is not executable; install the app first '
+                    'or pass --app-path /absolute/launcher.')
+
+
 class InstallTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix='install-test-')
@@ -458,10 +468,11 @@ class InstallTests(unittest.TestCase):
         self.reject('Unsafe installation path; remove symlinks or non-directory parents first.')
         self.config.unlink()
         self.config.write_text(json.dumps(self.original))
-        self.app.chmod(0o644)
-        self.reject(f'Native launcher is not executable: {self.app}. '
-                    'Pass --app-path with an executable file.')
         self.assertEqual(json.loads(external.read_text()), self.original)
+
+    def test_explicit_launcher_that_is_not_executable_is_named(self):
+        self.app.chmod(0o644)
+        self.reject(EXPLICIT_RECOVERY % self.app)
 
     def configured_app_path(self, path):
         current = json.loads(json.dumps(self.original))
@@ -473,40 +484,42 @@ class InstallTests(unittest.TestCase):
         self.app.unlink()
         before = self.snapshot()
         events = self.events()
-        self.result(self.run_cli(), 1, '',
-                    'Preflight rejected: Configured Gentle Dot appPath is not an executable file: '
-                    f'{self.app}. Set appPath to the native launcher or clear it for automatic lookup. '
-                    'Install the official app first if it is not installed.\n')
+        self.result(self.run_cli(), 1, '', 'Preflight rejected: ' + CONFIGURED_RECOVERY % self.app + '\n')
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(self.events(), events)
 
     def test_configured_app_path_that_lost_its_execute_bit_is_named(self):
         self.configured_app_path(self.app)
         self.app.chmod(0o644)
-        self.result(self.run_cli(), 1, '',
-                    'Preflight rejected: Configured Gentle Dot appPath is not an executable file: '
-                    f'{self.app}. Set appPath to the native launcher or clear it for automatic lookup. '
-                    'Install the official app first if it is not installed.\n')
+        before = self.snapshot()
+        events = self.events()
+        self.result(self.run_cli(), 1, '', 'Preflight rejected: ' + CONFIGURED_RECOVERY % self.app + '\n')
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.events(), events)
 
     def test_missing_launcher_reports_that_the_app_is_not_installed(self):
-        self.result(self.run_cli(), 1, '',
-                    'Preflight rejected: Native launcher is not executable; install the app first '
-                    'or pass --app-path /absolute/launcher.\n')
+        before = self.snapshot()
+        events = self.events()
+        self.result(self.run_cli(), 1, '', 'Preflight rejected: ' + MISSING_RECOVERY + '\n')
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.events(), events)
 
     def test_empty_app_path_argument_is_reported_as_empty(self):
+        before = self.snapshot()
+        events = self.events()
         self.result(self.run_cli('--app-path', ''), 1, '',
                     'Preflight rejected: Native launcher is not executable: the --app-path value is empty. '
                     'Pass --app-path with an executable file.\n')
+        self.assertEqual(self.snapshot(), before)
+        self.assertEqual(self.events(), events)
 
     def test_configured_app_path_recovery_matches_the_widget_message(self):
-        sentence = ('Configured Gentle Dot appPath is not an executable file: %s. '
-                    'Set appPath to the native launcher or clear it for automatic lookup.')
         widget = (ROOT / 'toggle.sh').read_text()
-        self.assertIn(sentence.replace('%s', '$1'), widget)
+        self.assertIn(WIDGET_RECOVERY.replace('%s', '$1'), widget)
         self.configured_app_path(self.app)
         self.app.unlink()
         result = self.run_cli()
-        self.assertTrue(result.stderr.startswith('Preflight rejected: ' + sentence.replace('%s', str(self.app))),
+        self.assertTrue(result.stderr.startswith('Preflight rejected: ' + WIDGET_RECOVERY % self.app),
                         result.stderr)
 
     def test_concurrent_config_writer_is_not_overwritten(self):
