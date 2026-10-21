@@ -215,6 +215,12 @@ This is one literal argv path, not a shell expression. Spaces are supported;
 Missing/broken configured paths fail with exit 127; app failures are propagated
 without fallback or retry. Direct use: `/bin/sh toggle.sh /absolute/native/launcher`.
 
+A managed native setup publishes `~/.local/bin/gentle-dot` itself, pointing at
+the managed build under `~/.local/share/gentle-dot-omarchy/`. That link lives
+outside every temporary directory, so it keeps working after a reboot. It is
+replaced only when the existing one is a broken link; a working launcher that
+points somewhere else is left untouched.
+
 ## Disable or remove
 
 ```sh
